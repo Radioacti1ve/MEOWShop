@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:15
+    image: postgres:latest
     container_name: meowshop_db
     environment:
       - POSTGRES_USER=postgres
@@ -20,6 +20,9 @@ services:
       retries: 5
     restart: always
 
+    networks:
+      - meow_net
+
   backend:
     build: 
       context: ./backend
@@ -36,5 +39,18 @@ services:
       - ./backend:/app
     restart: always
 
+    networks:
+      - meow_net
+
 volumes:
   postgres_data:
+
+
+networks:
+  meow_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/20
+
+
