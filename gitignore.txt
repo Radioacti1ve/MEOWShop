@@ -1,0 +1,5 @@
+# Игнорируем только Python cache файлы
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
