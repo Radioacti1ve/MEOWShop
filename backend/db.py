@@ -5,7 +5,7 @@ from typing import Optional
 DB_CONFIG = {
     "dbname": "meowshop",
     "user": "postgres",
-    "password": "postgres",
+    "password": "123",
     "host": "db",
     "port": "5432"
 }

@@ -31,6 +31,7 @@ ALTER TABLE "Sellers" ADD PRIMARY KEY("seller_id");
 CREATE TABLE IF NOT EXISTS "Comments"(
     "comment_id" SERIAL NOT NULL,
     "user_id" INTEGER NOT NULL,
+    "reply_to_comment_id" INTEGER,
     "product_id" INTEGER NOT NULL,
     "text" TEXT,
     "rating" INTEGER,
