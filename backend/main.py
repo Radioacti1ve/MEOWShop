@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException, status, Request, Depends, Security
+from fastapi import FastAPI, HTTPException, status, Request, Depends, Security, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
 from pydantic import BaseModel
-from catalog import seller
+from catalog.seller import seller
 from typing import Optional, List
-import security, db
+import security, db, csv
+from io import StringIO
 
 security_scheme = HTTPBearer()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -144,4 +145,38 @@ async def set_status(seller_id: int, data: ProductStatusUpdate):
 async def get_comments(seller_id: int):
     comments = seller.get_comments_for_seller_products(seller_id)
     return comments
+
+@app.post("/seller/products/upload", dependencies=[Depends(security_scheme)])
+async def upload_products_csv(seller_id: int, file: UploadFile = File(...)):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are supported")
+    content = await file.read()
+    decoded = content.decode('utf-8')
+    # Автоопределение разделителя
+    sample = decoded[:2048]
+    sniffer = csv.Sniffer()
+    try:
+        dialect = sniffer.sniff(sample, delimiters=",;\t|")
+        delimiter = dialect.delimiter
+    except Exception:
+        delimiter = ','  # fallback
+    reader = csv.DictReader(StringIO(decoded), delimiter=delimiter)
+    required_fields = {"product_name", "description", "category", "price", "in_stock"}
+    products = []
+    for row in reader:
+        # Оставляем только нужные поля, игнорируем лишние
+        product = {field: row.get(field) for field in required_fields}
+        # Валидация и преобразование типов
+        try:
+            product["price"] = float(product["price"])
+            product["in_stock"] = int(product["in_stock"])
+        except (ValueError, TypeError):
+            continue  # пропускаем некорректные строки
+        if not all(product.values()):
+            continue  # пропускаем строки с пустыми значениями
+        products.append(product)
+    if not products: 
+        raise HTTPException(status_code=400, detail="No valid products found in CSV")
+    inserted = seller.bulk_insert_products(seller_id, products)
+    return {"inserted": inserted, "count": len(inserted)}
 # eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJNQU1VVCBSQUhBTCIsImV4cCI6MTc0ODU0NzI2Nn0.EygPdB_bdRcuUW2XkBCBEJj-pC6a9ps3lYMG2rtoznA
