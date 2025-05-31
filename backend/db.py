@@ -2,6 +2,7 @@ import asyncpg
 import json
 from typing import Optional
 from redis.asyncio import Redis
+import datetime
 
 DB_CONFIG = {
     "user": "postgres",
@@ -14,6 +15,11 @@ DB_CONFIG = {
 redis_client = Redis(host='redis', port=6379, decode_responses=True)
 
 pool: asyncpg.pool.Pool | None = None
+
+def default_serializer(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 async def init_db_pool():
     global pool
@@ -30,7 +36,7 @@ async def get_user_by_username(username: str) -> Optional[dict]:
         user = await conn.fetchrow('SELECT * FROM "Users" WHERE username = $1', username)
         if user:
             user_dict = dict(user)
-            await redis_client.set(cache_key, json.dumps(user_dict), ex=3600)
+            await redis_client.set(cache_key, json.dumps(user_dict, default=default_serializer), ex=3600)
             return user_dict
         return None
 
