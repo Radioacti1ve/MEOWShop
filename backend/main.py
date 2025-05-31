@@ -8,7 +8,10 @@ from catalog.basic import comments
 from catalog.basic import comments_by_user
 from catalog.basic_authorization import write_comments
 from catalog.basic_authorization import get_orders
+from catalog.client import cart
+from catalog.client.gambling import router as gambling_router
 from authorization import db
+
 
 app = FastAPI(
     title="MEOWShop API",
@@ -46,3 +49,5 @@ app.include_router(comments.router, prefix="/catalog", tags=["comments"])
 app.include_router(comments_by_user.router, prefix="/catalog/users")
 app.include_router(write_comments.router)
 app.include_router(get_orders.router, prefix="/catalog", tags=["orders"])
+app.include_router(cart.router)
+app.include_router(gambling_router)
