@@ -25,6 +25,20 @@ services:
     container_name: meowshop_redis
     restart: always
 
+  minio:
+    image: minio/minio:latest
+    container_name: meowshop_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server --console-address ":9001" /data
+    restart: always
+
   backend:
     build: 
       context: ./backend
@@ -35,10 +49,16 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/meowshop
       - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=meowshop
     depends_on:
       db:
         condition: service_healthy
       redis:
+        condition: service_started
+      minio:
         condition: service_started
     volumes:
       - ./backend:/app
@@ -46,3 +66,4 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:

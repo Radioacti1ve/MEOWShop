@@ -46,6 +46,19 @@ async def get_product(product_id: int):
             '''
             product = await conn.fetchrow(query, product_id)
 
+            images_query = '''
+                SELECT image_filename
+                FROM "Product_images"
+                WHERE product_id = $1
+                ORDER BY position ASC
+            '''
+            images_records = await conn.fetch(images_query, product_id)
+            image_urls = [
+                f"http://localhost:9000/product-images/{r['image_filename']}"
+                for r in images_records
+                if r["image_filename"]
+            ]
+
         if not product:
             raise HTTPException(status_code=404, detail="Товар не найден")
 
@@ -64,7 +77,8 @@ async def get_product(product_id: int):
             "price": float(product["price"]),
             "in_stock": product["in_stock"],
             "status": product["status"],
-            "avg_rating": avg_rating
+            "avg_rating": avg_rating,
+            "images": image_urls
         }
 
         return product_info

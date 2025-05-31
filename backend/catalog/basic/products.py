@@ -53,10 +53,7 @@ async def get_products(
             query += ' AND p.price <= $' + str(len(params) + 1)
             params.append(max_price)
         if in_stock is not None:
-            if in_stock:
-                query += ' AND p.in_stock > 0'
-            else:
-                query += ' AND p.in_stock = 0'
+            query += ' AND p.in_stock > 0' if in_stock else ' AND p.in_stock = 0'
         if seller_id is not None:
             query += ' AND p.seller_id = $' + str(len(params) + 1)
             params.append(seller_id)
@@ -64,13 +61,13 @@ async def get_products(
         query += ' GROUP BY p.product_id, u.username'
 
         if min_rating is not None and max_rating is not None:
-            query += ' HAVING AVG(c.rating) BETWEEN $' + str(len(params) + 1) + ' AND $' + str(len(params) + 2)
+            query += f' HAVING AVG(c.rating) BETWEEN ${len(params)+1} AND ${len(params)+2}'
             params.extend([min_rating, max_rating])
         elif min_rating is not None:
-            query += ' HAVING AVG(c.rating) >= $' + str(len(params) + 1)
+            query += f' HAVING AVG(c.rating) >= ${len(params)+1}'
             params.append(min_rating)
         elif max_rating is not None:
-            query += ' HAVING AVG(c.rating) <= $' + str(len(params) + 1)
+            query += f' HAVING AVG(c.rating) <= ${len(params)+1}'
             params.append(max_rating)
 
         if sort_by == "price_asc":
@@ -87,32 +84,46 @@ async def get_products(
         async with db.pool.acquire() as conn:
             records = await conn.fetch(query, *params)
 
-        async def get_cached_rating(product_id: int, db_rating) -> str:
-            cache_key = f"product:{product_id}:avg_rating"
-            cached = await redis_client.get(cache_key)
-            if cached is not None:
-                return cached
-            # Если в кеше нет, кешируем то, что пришло из базы (если рейтинг None, то "нет оценок")
-            rating_str = str(db_rating) if db_rating is not None else "нет оценок"
-            if db_rating is not None:
-                await redis_client.set(cache_key, rating_str, ex=CACHE_TTL_SECONDS)
-            return rating_str
+            async def get_cached_rating(product_id: int, db_rating) -> str:
+                cache_key = f"product:{product_id}:avg_rating"
+                cached = await redis_client.get(cache_key)
+                if cached is not None:
+                    return cached
+                rating_str = str(db_rating) if db_rating is not None else "нет оценок"
+                if db_rating is not None:
+                    await redis_client.set(cache_key, rating_str, ex=CACHE_TTL_SECONDS)
+                return rating_str
 
-        products = []
-        for p in records:
-            avg_rating = await get_cached_rating(p["product_id"], p["avg_rating"])
-            products.append({
-                "product_id": p["product_id"],
-                "seller_id": p["seller_id"],
-                "seller_name": p["seller_name"],
-                "product_name": p["product_name"],
-                "description": p["description"],
-                "category": p["category"],
-                "price": float(p["price"]),
-                "in_stock": p["in_stock"],
-                "status": p["status"],
-                "avg_rating": avg_rating
-            })
+            products = []
+            for p in records:
+                avg_rating = await get_cached_rating(p["product_id"], p["avg_rating"])
+
+                image_record = await conn.fetchrow('''
+                    SELECT image_filename FROM "Product_images"
+                    WHERE product_id = $1
+                    ORDER BY position ASC
+                    LIMIT 1
+                ''', p["product_id"])
+
+                main_image_url = (
+                    f"http://localhost:9000/product-images/{image_record['image_filename']}"
+                    if image_record and image_record["image_filename"]
+                    else None
+                )
+
+                products.append({
+                    "product_id": p["product_id"],
+                    "seller_id": p["seller_id"],
+                    "seller_name": p["seller_name"],
+                    "product_name": p["product_name"],
+                    "description": p["description"],
+                    "category": p["category"],
+                    "price": float(p["price"]),
+                    "in_stock": p["in_stock"],
+                    "status": p["status"],
+                    "avg_rating": avg_rating,
+                    "main_image_url": main_image_url
+                })
 
         return {
             "count": len(products),

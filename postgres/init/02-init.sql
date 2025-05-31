@@ -26,6 +26,13 @@ INSERT INTO "Products" ("seller_id", "product_name", "description", "category", 
 (3, 'Пылесос Philips PowerPro Expert', 'Мощность 650 Вт, мешок для пыли 2 л', 'Бытовая техника', 8990.00, 12, 'available'),
 (1, 'Power Bank 20000 mAh', 'Универсальный power bank с быстрой зарядкой', 'Электроника', 2990.00, 0, 'out_of_stock');
 
+INSERT INTO "Product_images" ("product_id", "image_filename", "position")
+VALUES
+(1, 'IMG20250526201242.jpg', 0),
+(1, 'IMG20250526201243.jpg', 1),
+(2, 'headphones1.jpg', 0),
+(2, 'headphones2.jpg', 1);
+
 INSERT INTO "Baskets" ("user_id") VALUES
 (1), (2), (3), (4), (5);
 
