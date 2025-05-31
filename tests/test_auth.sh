@@ -21,7 +21,6 @@ LOGIN_RESPONSE=$(curl -s -X POST "$API_URL/login" \
 echo "Ответ входа:"
 echo "$LOGIN_RESPONSE" | jq .
 
-# Сохраняем токены
 ACCESS_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r .access_token)
 REFRESH_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r .refresh_token)
 echo -e "\n----------------------------\n"

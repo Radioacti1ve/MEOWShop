@@ -6,14 +6,12 @@ import db
 from elastic.client import get_elasticsearch_client
 from elastic.mappings import PRODUCT_INDEX_NAME
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def get_all_products() -> List[Dict[str, Any]]:
     """Get all products from PostgreSQL database"""
     try:
-        # Always initialize a new pool for this operation
         await db.init_db_pool()
         
         async with db.pool.acquire() as conn:
@@ -46,35 +44,28 @@ async def sync_products_to_elasticsearch():
     logger.info("Starting synchronization process...")
     
     try:
-        # Initialize database pool
         await db.init_db_pool()
         
         es_client = get_elasticsearch_client()
         await es_client.initialize()
         logger.info("Elasticsearch client initialized")
         
-        # Make sure the index exists with proper mapping
         from elastic.mappings import create_product_index
         await create_product_index(es_client.get_client())
         logger.info("Index mapping created/updated")
 
-        # Get all products from PostgreSQL
         logger.info("Fetching products from PostgreSQL...")
         products = await get_all_products()
         logger.info(f"Found {len(products)} products in PostgreSQL")
 
-        # Prepare bulk indexing operations
         operations = []
         for product in products:
-            # Convert IDs to strings
             product['product_id'] = str(product['product_id'])
             product['seller_id'] = str(product['seller_id'])
             
-            # Convert decimal to float for JSON serialization
             if product['price'] is not None:
                 product['price'] = float(product['price'])
             
-            # Convert rating to float if it exists
             if product['avg_rating'] is not None:
                 product['avg_rating'] = float(product['avg_rating'])
 
@@ -84,7 +75,6 @@ async def sync_products_to_elasticsearch():
             ])
 
         if operations:
-            # Perform bulk indexing
             logger.info(f"Starting bulk indexing of {len(products)} products...")
             response = await es_client.get_client().bulk(body=operations, refresh=True)
             
@@ -127,11 +117,9 @@ async def sync_product_to_elasticsearch(product_id: str):
             if row:
                 product = dict(row)
                 
-                # Convert the product_id to string if it's not already
                 product['product_id'] = str(product['product_id'])
                 product['seller_id'] = str(product['seller_id'])
                 
-                # Convert decimal to float for JSON serialization
                 if product['price'] is not None:
                     product['price'] = float(product['price'])
 
@@ -158,5 +146,4 @@ async def delete_product_from_elasticsearch(product_id: str):
             refresh=True
         )
     except Exception:
-        # Ignore if the product doesn't exist in Elasticsearch
         pass

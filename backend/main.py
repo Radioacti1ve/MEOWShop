@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import logging
-from auth import router as auth_router
+from auth import router as auth_router, admin_router
 from catalog.basic import products 
 from catalog.basic.product import router as product_router 
 from catalog.basic.sellers_categories import router as sellers_categories_router
@@ -40,7 +40,6 @@ async def startup_event():
     """Initialize application resources on startup"""
     logger.info("Starting application initialization...")
     
-    # Initialize database pool
     logger.info("Initializing database pool...")
     try:
         await db.init_db_pool()
@@ -49,18 +48,15 @@ async def startup_event():
         logger.error(f"Failed to initialize database pool: {e}")
         raise
     
-    # Initialize Elasticsearch
     logger.info("Initializing Elasticsearch client...")
     es_client = get_elasticsearch_client()
     await es_client.initialize()
     logger.info("Elasticsearch client initialized")
     
-    # Create/update index mapping
     logger.info("Creating/updating Elasticsearch index mapping...")
     await create_product_index(es_client.get_client())
     logger.info("Index mapping created/updated successfully")
     
-    # Sync products
     logger.info("Starting product synchronization with Elasticsearch...")
     from elastic.sync import sync_products_to_elasticsearch
     await sync_products_to_elasticsearch()
@@ -71,12 +67,10 @@ async def shutdown_event():
     """Cleanup application resources on shutdown"""
     logger.info("Starting application shutdown...")
     
-    # Close database pool
     logger.info("Closing database pool...")
     await db.close_db_pool()
     logger.info("Database pool closed")
     
-    # Close Elasticsearch connection
     logger.info("Closing Elasticsearch connection...")
     es_client = get_elasticsearch_client()
     await es_client.close()
@@ -88,6 +82,7 @@ async def root():
 
 # Роутеры
 app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(products.router, prefix="/catalog", tags=["Products"])
 app.include_router(product_router, prefix="/catalog")
 app.include_router(sellers_categories_router)

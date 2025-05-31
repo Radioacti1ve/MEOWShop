@@ -61,7 +61,6 @@ class SearchService:
             "query": {
                 "bool": {
                     "should": [
-                        # Точное совпадение начала слова
                         {
                             "match_phrase_prefix": {
                                 "product_name": {
@@ -70,7 +69,6 @@ class SearchService:
                                 }
                             }
                         },
-                        # Нечёткий поиск для опечаток
                         {
                             "match": {
                                 "product_name": {
@@ -80,7 +78,6 @@ class SearchService:
                                 }
                             }
                         },
-                        # Поиск по частям слов
                         {
                             "wildcard": {
                                 "product_name": {
@@ -89,7 +86,6 @@ class SearchService:
                                 }
                             }
                         },
-                        # Поиск по транслитерации (для случаев, когда пользователь пишет русские слова латиницей)
                         {
                             "match": {
                                 "product_name": {
@@ -129,19 +125,16 @@ class SearchService:
     async def get_similar_products(self, product_id: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Find similar products based on content and context"""
         try:
-            # Получаем исходный товар
             product = await self.es_client.get_client().get(
                 index=PRODUCT_INDEX_NAME,
                 id=product_id
             )
             source = product["_source"]
 
-            # Формируем поисковый запрос
             body = {
                 "query": {
                     "bool": {
                         "should": [
-                            # Товары той же категории
                             {
                                 "term": {
                                     "category.keyword": {
@@ -150,7 +143,6 @@ class SearchService:
                                     }
                                 }
                             },
-                            # Товары того же продавца
                             {
                                 "term": {
                                     "seller_id": {
@@ -159,7 +151,6 @@ class SearchService:
                                     }
                                 }
                             },
-                            # Товары в похожем ценовом диапазоне (±30%)
                             {
                                 "range": {
                                     "price": {
@@ -169,7 +160,6 @@ class SearchService:
                                     }
                                 }
                             },
-                            # Похожие по описанию товары
                             {
                                 "more_like_this": {
                                     "fields": ["product_name", "description"],
@@ -182,11 +172,9 @@ class SearchService:
                             }
                         ],
                         "must_not": [
-                            # Исключаем текущий товар
                             {"term": {"product_id": product_id}}
                         ],
                         "filter": [
-                            # Только доступные товары в наличии
                             {"term": {"status": "available"}},
                             {"range": {"in_stock": {"gt": 0}}}
                         ],

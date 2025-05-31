@@ -6,7 +6,6 @@ import datetime
 import asyncio
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,6 @@ async def init_db_pool(max_retries=5, retry_interval=5):
             logger.info(f"Attempting to create database pool (attempt {attempt + 1}/{max_retries})")
             pool = await asyncpg.create_pool(**DB_CONFIG)
             
-            # Test the connection
             async with pool.acquire() as conn:
                 await conn.fetchval('SELECT 1')
             
@@ -95,13 +93,7 @@ async def create_user(username: str, email: str, hashed_password: str, role: str
             return dict(user)
         return None
 
-async def create_pending_seller(
-    user_id: int,
-    company_name: str,
-    contact_phone: str,
-    tax_number: str,
-    documents_url: Optional[str] = None
-) -> Optional[dict]:
+async def create_pending_seller(user_id: int) -> Optional[dict]:
     """Create a new pending seller application"""
     global pool
     if pool is None:
@@ -109,14 +101,13 @@ async def create_pending_seller(
 
     async with pool.acquire() as conn:
         try:
-            # Create pending seller record
             seller = await conn.fetchrow(
                 '''
-                INSERT INTO "PendingSellers" (user_id, company_name, contact_phone, tax_number, documents_url)
-                VALUES ($1, $2, $3, $4, $5)
+                INSERT INTO "PendingSellers" (user_id)
+                VALUES ($1)
                 RETURNING *
                 ''',
-                user_id, company_name, contact_phone, tax_number, documents_url
+                user_id
             )
             
             return dict(seller) if seller else None
@@ -172,7 +163,6 @@ async def update_pending_seller_status(
 
     async with pool.acquire() as conn:
         async with conn.transaction():
-            # Get seller details before updating status
             seller = await conn.fetchrow(
                 '''
                 SELECT *
@@ -185,7 +175,6 @@ async def update_pending_seller_status(
             if not seller:
                 return None
 
-            # Update pending seller status
             updated_seller = await conn.fetchrow(
                 '''
                 UPDATE "PendingSellers"
@@ -199,15 +188,12 @@ async def update_pending_seller_status(
             if not updated_seller:
                 return None
 
-            # If approved, create seller record and update user role
             if status == 'approved':
-                # Update user role to seller
                 await conn.execute(
                     'UPDATE "Users" SET role = $1 WHERE user_id = $2',
                     'seller', seller['user_id']
                 )
                 
-                # Create seller record
                 await conn.execute(
                     '''
                     INSERT INTO "Sellers" (user_id)
@@ -234,4 +220,68 @@ async def get_pending_seller_by_user_id(user_id: int) -> Optional[dict]:
             user_id
         )
         return dict(seller) if seller else None
+
+async def create_pending_admin(user_id: int) -> dict:
+    """Create a pending admin application"""
+    query = '''
+        INSERT INTO pending_admins (user_id)
+        VALUES ($1)
+        RETURNING *
+    '''
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(query, user_id)
+        return dict(row) if row else None
+
+async def get_pending_admin_by_id(pending_admin_id: int) -> dict:
+    """Get a pending admin application by ID"""
+    query = 'SELECT * FROM pending_admins WHERE pending_admin_id = $1'
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(query, pending_admin_id)
+        return dict(row) if row else None
+
+async def get_pending_admins_by_status(status: str) -> list:
+    """Get all pending admin applications with given status"""
+    query = 'SELECT * FROM pending_admins WHERE status = $1'
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query, status)
+        return [dict(row) for row in rows]
+
+async def update_pending_admin_status(
+    pending_admin_id: int,
+    status: str,
+    approver_comment: str = None
+) -> dict:
+    """Update the status of a pending admin application"""
+    query = '''
+        UPDATE pending_admins
+        SET status = $1, approver_comment = $2
+        WHERE pending_admin_id = $3
+        RETURNING *
+    '''
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(query, status, approver_comment, pending_admin_id)
+        if row and status == 'approved':
+            await add_role_to_user(dict(row)['user_id'], 'admin')
+        return dict(row) if row else None
+
+async def get_pending_admin_by_user_id(user_id: int) -> dict:
+    """Get the most recent pending admin application for a user"""
+    query = '''
+        SELECT * FROM pending_admins 
+        WHERE user_id = $1 
+        ORDER BY created_at DESC 
+        LIMIT 1
+    '''
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(query, user_id)
+        return dict(row) if row else None
+
+async def add_role_to_user(user_id: int, role: str) -> bool:
+    """Update user role"""
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            'UPDATE "Users" SET role = $1 WHERE user_id = $2',
+            role, user_id
+        )
+        return result == "UPDATE 1"
 

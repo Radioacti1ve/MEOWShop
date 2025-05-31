@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
-from .models import UserLogin, UserRegister, Token, TokenRefresh, SellerRegister, PendingSellerResponse, SellerApproval
+from .models import UserLogin, UserRegister, Token, TokenRefresh, SellerRegister, PendingSellerResponse, SellerApproval, AdminRegister, PendingAdminResponse, AdminApproval
 from . import security
 import db
 import logging
@@ -174,10 +174,6 @@ async def register_seller(seller: SellerRegister):
     - **username**: Unique username
     - **email**: Valid email address
     - **password**: Strong password
-    - **company_name**: Name of the company
-    - **contact_phone**: Contact phone number
-    - **tax_number**: Company tax identification number
-    - **documents_url**: Optional URL to company documents
     """
     try:
         # Check if username already exists
@@ -198,13 +194,7 @@ async def register_seller(seller: SellerRegister):
             )
 
         # Create pending seller application
-        pending_seller = await db.create_pending_seller(
-            user_id=new_user["user_id"],
-            company_name=seller.company_name,
-            contact_phone=seller.contact_phone,
-            tax_number=seller.tax_number,
-            documents_url=seller.documents_url
-        )
+        pending_seller = await db.create_pending_seller(user_id=new_user["user_id"])
         if not pending_seller:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -310,6 +300,145 @@ async def get_seller_application_status(
         raise
     except Exception as e:
         logger.error(f"Error getting seller application status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+@router.post("/admins/register", status_code=status.HTTP_201_CREATED, response_model=PendingAdminResponse)
+async def register_admin(admin: AdminRegister):
+    """
+    Register a new administrator. Creates a user account and a pending admin application.
+    The application must be approved by a super admin before the admin privileges are granted.
+    
+    - **username**: Unique username
+    - **email**: Valid email address
+    - **password**: Strong password
+    """
+    try:
+        # Проверяем, не занято ли имя пользователя
+        existing_user = await db.get_user_by_username(admin.username)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already registered"
+            )
+
+        # Создаём аккаунт пользователя
+        hashed_password = security.get_password_hash(admin.password)
+        new_user = await db.create_user(admin.username, admin.email, hashed_password)
+        if not new_user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create user account"
+            )
+            
+        # Проверяем, нет ли уже заявки от этого пользователя
+        existing_application = await db.get_pending_admin_by_user_id(new_user["user_id"])
+        if existing_application:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User already has a pending admin application"
+            )
+
+        # Создаём заявку на регистрацию админа
+        pending_admin = await db.create_pending_admin(new_user["user_id"])
+        if not pending_admin:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create admin application"
+            )
+
+        return pending_admin
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Admin registration error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+@router.get("/admins/pending", response_model=List[PendingAdminResponse])
+async def get_pending_admins(
+    current_user: Annotated[dict, Depends(require_role(["admin"]))]
+):
+    """
+    Get all pending admin applications.
+    Only accessible by admins.
+    """
+    try:
+        return await db.get_pending_admins_by_status("pending")
+    except Exception as e:
+        logger.error(f"Error getting pending admins: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+@router.get("/admins/application/status", response_model=PendingAdminResponse)
+async def get_admin_application_status(
+    current_user: Annotated[dict, Depends(get_current_user)]
+):
+    """
+    Get the status of the current user's admin application.
+    """
+    try:
+        # Получаем заявку для текущего пользователя
+        pending_admin = await db.get_pending_admin_by_user_id(current_user["user_id"])
+        if not pending_admin:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No admin application found"
+            )
+        return pending_admin
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting admin application status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+@router.post("/admins/{pending_admin_id}/approve", response_model=PendingAdminResponse)
+async def approve_admin(
+    pending_admin_id: int,
+    approval: AdminApproval,
+    current_user: Annotated[dict, Depends(require_role(["admin"]))]
+):
+    """
+    Approve or reject a pending admin application.
+    Only accessible by admins.
+    """
+    try:
+        # Проверяем существование заявки
+        existing_application = await db.get_pending_admin_by_id(pending_admin_id)
+        if not existing_application:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Admin application not found"
+            )
+
+        # Обновляем статус заявки
+        updated_admin = await db.update_pending_admin_status(
+            pending_admin_id=pending_admin_id,
+            status=approval.status,
+            approver_comment=approval.approver_comment
+        )
+        if not updated_admin:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update admin status"
+            )
+
+        return updated_admin
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error approving admin: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"

@@ -1,12 +1,10 @@
 #!/bin/bash
 
-# Цвета для вывода
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 BLUE='\033[0;34m'
 
-# Функция для проверки условия
 assert() {
     if [ $1 -eq $2 ]; then
         echo -e "${GREEN}✓ Тест пройден: $3${NC}"
@@ -29,7 +27,6 @@ RESPONSE_BODY=${ADMIN_LOGIN_RESPONSE:0:${#ADMIN_LOGIN_RESPONSE}-3}
 
 assert $HTTP_CODE 200 "Авторизация админа"
 
-# Сохраняем токены
 ADMIN_TOKEN=$(echo $RESPONSE_BODY | jq -r '.access_token')
 echo "Получен токен админа"
 
@@ -42,16 +39,16 @@ HTTP_CODE=${INVALID_LOGIN_RESPONSE: -3}
 assert $HTTP_CODE 401 "Неправильный пароль"
 
 echo -e "\n${BLUE}3. Тестирование регистрации продавца${NC}"
+TIMESTAMP=$(date +%s)
+SELLER_USERNAME="test_shop_$TIMESTAMP"
+SELLER_EMAIL="test.shop$TIMESTAMP@example.com"
+
 SELLER_REGISTER_RESPONSE=$(curl -s -w "%{http_code}" -X POST "$API_URL/sellers/register" \
     -H "Content-Type: application/json" \
     -d '{
-        "username": "test_shop_1",
-        "email": "test.shop1@example.com",
-        "password": "test_password",
-        "company_name": "Test Shop One LLC",
-        "contact_phone": "+7 999 111 22 33",
-        "tax_number": "1234567891",
-        "documents_url": "https://example.com/docs/test_shop_1"
+        "username": "'$SELLER_USERNAME'",
+        "email": "'$SELLER_EMAIL'",
+        "password": "test_password"
     }')
 
 HTTP_CODE=${SELLER_REGISTER_RESPONSE: -3}
@@ -59,7 +56,6 @@ RESPONSE_BODY=${SELLER_REGISTER_RESPONSE:0:${#SELLER_REGISTER_RESPONSE}-3}
 
 assert $HTTP_CODE 201 "Регистрация продавца"
 
-# Сохраняем ID заявки
 PENDING_SELLER_ID=$(echo $RESPONSE_BODY | jq -r '.pending_seller_id')
 echo "ID заявки продавца: $PENDING_SELLER_ID"
 
@@ -92,7 +88,7 @@ echo -e "\n${BLUE}6. Проверка авторизации нового про
 SELLER_LOGIN_RESPONSE=$(curl -s -w "%{http_code}" -X POST "$API_URL/login" \
     -H "Content-Type: application/json" \
     -d '{
-        "username": "test_shop_1",
+        "username": "'$SELLER_USERNAME'",
         "password": "test_password"
     }')
 
@@ -131,11 +127,10 @@ LOGOUT_RESPONSE=$(curl -s -w "%{http_code}" -X POST "$API_URL/logout" \
 HTTP_CODE=${LOGOUT_RESPONSE: -3}
 assert $HTTP_CODE 200 "Выход из системы"
 
-# Пробуем использовать токен после выхода
 BLACKLIST_TEST_RESPONSE=$(curl -s -w "%{http_code}" -X GET "$API_URL/me" \
     -H "Authorization: Bearer $SELLER_TOKEN")
 
 HTTP_CODE=${BLACKLIST_TEST_RESPONSE: -3}
 assert $HTTP_CODE 401 "Токен в черном списке"
 
-echo -e "\n${GREEN}Все тесты успешно пройдены!${NC}" 
+echo -e "\n${GREEN}Все тесты успешно пройдены!${NC}"
