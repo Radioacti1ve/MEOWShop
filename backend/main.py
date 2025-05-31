@@ -1,11 +1,10 @@
-from fastapi import FastAPI, HTTPException, status, Request, Depends, Security, File, UploadFile
+from fastapi import FastAPI, HTTPException, status, Request, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
 from pydantic import BaseModel
-from catalog.seller import seller
+from catalog.seller import router as seller_router
 from typing import Optional, List
-import security, db, csv
-from io import StringIO
+import security, db
 
 security_scheme = HTTPBearer()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -24,6 +23,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Подключаем роутер для seller API
+app.include_router(seller_router)
+
 class UserLogin(BaseModel):
     username: str
     password: str
@@ -33,30 +35,16 @@ class UserRegister(BaseModel):
     email: str
     password: str
 
-class SellerProfileUpdate(BaseModel):
-    description: str
+@app.on_event("startup")
+async def startup():
+    # Создаем пул подключений при запуске приложения
+    await db.get_async_pool()
 
-class ProductCreate(BaseModel):
-    product_name: str
-    description: str
-    category: str
-    price: float
-    in_stock: int
-
-class ProductUpdate(BaseModel):
-    product_id: int
-    product_name: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = None
-    price: Optional[float] = None
-    in_stock: Optional[int] = None
-
-class ProductStatusUpdate(BaseModel):
-    product_id: int
-    status: str
-
-class ProductDelete(BaseModel):
-    product_id: int
+@app.on_event("shutdown")
+async def shutdown():
+    # Закрываем пул при остановке приложения
+    if db._pool:
+        await db._pool.close()
 
 @app.get("/")
 async def root():
@@ -64,33 +52,50 @@ async def root():
 
 @app.post("/login")
 async def login(user: UserLogin):
-    db_user = db.get_user_by_username(user.username)
-    if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
-        )
-    if not security.verify_password(user.password, db_user["password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
-        )
-    
-    token = security.create_access_token({"sub": user.username})
-    return {"access_token": token, "token_type": "bearer"}
+    # Преобразуем функцию get_user_by_username для асинхронного использования
+    pool = await db.get_async_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow('SELECT * FROM "Users" WHERE username = $1', user.username)
+        
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password"
+            )
+        
+        db_user = dict(row)
+        
+        if not security.verify_password(user.password, db_user["password"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password"
+            )
+        
+        token = security.create_access_token({"sub": user.username})
+        return {"access_token": token, "token_type": "bearer"}
 
 @app.post("/register")
 async def register(user: UserRegister):
-    existing_user = db.get_user_by_username(user.username)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
+    # Проверка на существование пользователя
+    pool = await db.get_async_pool()
+    async with pool.acquire() as conn:
+        existing_user = await conn.fetchrow('SELECT * FROM "Users" WHERE username = $1', user.username)
+        
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already registered"
+            )
+        
+        hashed_password = security.get_password_hash(user.password)
+        
+        # Создание нового пользователя
+        row = await conn.fetchrow(
+            'INSERT INTO "Users" (username, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
+            user.username, user.email, hashed_password, "user"
         )
-    
-    hashed_password = security.get_password_hash(user.password)
-    new_user = db.create_user(user.username, user.email, hashed_password)
-    return {"message": "User created successfully", "user_id": new_user["user_id"]}
+        
+        return {"message": "User created successfully", "user_id": row["user_id"]}
 
 @app.get("/protected", dependencies=[Depends(security_scheme)])
 async def protected_route(token: str = Depends(oauth2_scheme)):
@@ -103,80 +108,5 @@ async def protected_route(token: str = Depends(oauth2_scheme)):
         )
     return {"message": "This is a protected route", "user": payload["sub"]}
 
-@app.put("/seller/profile", dependencies=[Depends(security_scheme)])
-async def update_profile(user_id: int, data: SellerProfileUpdate):
-    result = seller.update_seller_profile(user_id, data.description)
-    if not result:
-        raise HTTPException(status_code=404, detail="Seller not found")
-    return result
-
-@app.post("/seller/product", dependencies=[Depends(security_scheme)])
-async def add_product(seller_id: int, data: ProductCreate):
-    product = seller.add_product(seller_id, data.product_name, data.description, data.category, data.price, data.in_stock)
-    return product
-
-@app.put("/seller/product", dependencies=[Depends(security_scheme)])
-async def update_product(seller_id: int, data: ProductUpdate):
-    updated = seller.update_product(seller_id, data.product_id, data.product_name, data.description, data.category, data.price, data.in_stock)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Product not found or not yours")
-    return updated
-
-@app.delete("/seller/product", dependencies=[Depends(security_scheme)])
-async def delete_product(seller_id: int, data: ProductDelete):
-    deleted = seller.delete_product(seller_id, data.product_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Product not found or not yours")
-    return {"message": "Product deleted"}
-
-@app.get("/seller/orders", dependencies=[Depends(security_scheme)])
-async def get_orders(seller_id: int):
-    orders = seller.get_orders_with_seller_products(seller_id)
-    return orders
-
-@app.put("/seller/product/status", dependencies=[Depends(security_scheme)])
-async def set_status(seller_id: int, data: ProductStatusUpdate):
-    updated = seller.set_product_status(seller_id, data.product_id, data.status)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Product not found or not yours")
-    return updated
-
-@app.get("/seller/comments", dependencies=[Depends(security_scheme)])
-async def get_comments(seller_id: int):
-    comments = seller.get_comments_for_seller_products(seller_id)
-    return comments
-
-@app.post("/seller/products/upload", dependencies=[Depends(security_scheme)])
-async def upload_products_csv(seller_id: int, file: UploadFile = File(...)):
-    if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="Only CSV files are supported")
-    content = await file.read()
-    decoded = content.decode('utf-8')
-    # Автоопределение разделителя
-    sample = decoded[:2048]
-    sniffer = csv.Sniffer()
-    try:
-        dialect = sniffer.sniff(sample, delimiters=",;\t|")
-        delimiter = dialect.delimiter
-    except Exception:
-        delimiter = ','  # fallback
-    reader = csv.DictReader(StringIO(decoded), delimiter=delimiter)
-    required_fields = {"product_name", "description", "category", "price", "in_stock"}
-    products = []
-    for row in reader:
-        # Оставляем только нужные поля, игнорируем лишние
-        product = {field: row.get(field) for field in required_fields}
-        # Валидация и преобразование типов
-        try:
-            product["price"] = float(product["price"])
-            product["in_stock"] = int(product["in_stock"])
-        except (ValueError, TypeError):
-            continue  # пропускаем некорректные строки
-        if not all(product.values()):
-            continue  # пропускаем строки с пустыми значениями
-        products.append(product)
-    if not products: 
-        raise HTTPException(status_code=400, detail="No valid products found in CSV")
-    inserted = seller.bulk_insert_products(seller_id, products)
-    return {"inserted": inserted, "count": len(inserted)}
+# JWT token для тестирования
 # eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJNQU1VVCBSQUhBTCIsImV4cCI6MTc0ODU0NzI2Nn0.EygPdB_bdRcuUW2XkBCBEJj-pC6a9ps3lYMG2rtoznA

@@ -1,11 +1,11 @@
-extra_col1;extra_col2;extra_col3;extra_col4;extra_col5;extra_col6;extra_col7;extra_col8;extra_col9;product_name;description;category;price;in_stock
-"blue";"plastic";"2025-07-01";"supplierA";"RU";"fish001";"promoA";"unusedA";"unusedB";"Aquarium Filter";"Efficient filter for clean water";"Equipment";24.99;50
-"green";"glass";"2025-08-15";"supplierB";"RU";"fish002";"promoB";"unusedC";"unusedD";"Aquarium Heater";"Adjustable heater for tropical fish";"Equipment";19.99;40
-"white";"ceramic";"2025-09-10";"supplierC";"RU";"fish003";"promoC";"unusedE";"unusedF";"Fish Food";"High-protein flakes for all fish";"Food";7.49;200
-"yellow";"plastic";"2025-10-05";"supplierD";"RU";"fish004";"promoD";"unusedG";"unusedH";"Aquarium Light";"LED light for plant growth";"Lighting";29.99;30
-"red";"resin";"2025-11-20";"supplierE";"RU";"fish005";"promoE";"unusedI";"unusedJ";"Aquarium Decoration";"Colorful castle for aquariums";"Decor";12.99;80
-"brown";"sand";"2025-12-12";"supplierF";"RU";"fish006";"promoF";"unusedK";"unusedL";"Aquarium Gravel";"Natural substrate for tanks";"Substrate";9.99;100
-"grey";"plastic";"2026-01-18";"supplierG";"RU";"fish007";"promoG";"unusedM";"unusedN";"Air Pump";"Silent air pump for oxygenation";"Equipment";15.99;60
-"black";"rubber";"2026-02-22";"supplierH";"RU";"fish008";"promoH";"unusedO";"unusedP";"Fish Net";"Fine mesh net for safe catching";"Accessories";4.99;120
-"orange";"glass";"2026-03-30";"supplierI";"RU";"fish009";"promoI";"unusedQ";"unusedR";"Aquarium Thermometer";"Digital thermometer for tanks";"Equipment";6.99;90
-"purple";"plastic";"2026-04-25";"supplierJ";"RU";"fish010";"promoJ";"unusedS";"unusedT";"Water Conditioner";"Removes chlorine from tap water";"Care";;110
+extra_col1,extra_col2,extra_col3,extra_col4,extra_col5,extra_col6,extra_col7,extra_col8,extra_col9,product_name,description,category,price,in_stock
+"blue","plastic","2025-07-01","supplierA","RU","fish001","promoA","unusedA","unusedB","Aquarium Filter","Efficient filter for clean water","Equipment",24.99,50
+"green","glass","2025-08-15","supplierB","RU","fish002","promoB","unusedC","unusedD","Aquarium Heater","Adjustable heater for tropical fish","Equipment",19.99,40
+"white","ceramic","2025-09-10","supplierC","RU","fish003","promoC","unusedE","unusedF","Fish Food","High-protein flakes for all fish","Food",7.49,200
+"yellow","plastic","2025-10-05","supplierD","RU","fish004","promoD","unusedG","unusedH","Aquarium Light","LED light for plant growth","Lighting",29.99,30
+"red","resin","2025-11-20","supplierE","RU","fish005","promoE","unusedI","unusedJ","Aquarium Decoration","Colorful castle for aquariums","Decor",12.99,80
+"brown","sand","2025-12-12","supplierF","RU","fish006","promoF","unusedK","unusedL","Aquarium Gravel","Natural substrate for tanks","Substrate",9.99,100
+"grey","plastic","2026-01-18","supplierG","RU","fish007","promoG","unusedM","unusedN","Air Pump","Silent air pump for oxygenation","Equipment",15.99,60
+"black","rubber","2026-02-22","supplierH","RU","fish008","promoH","unusedO","unusedP","Fish Net","Fine mesh net for safe catching","Accessories",4.99,120
+"orange","glass","2026-03-30","supplierI","RU","fish009","promoI","unusedQ","unusedR","Aquarium Thermometer","Digital thermometer for tanks","Equipment",6.99,90
+"purple","plastic","2026-04-25","supplierJ","RU","fish010","promoJ","unusedS","unusedT","Water Conditioner","Removes chlorine from tap water","Care",8.49,110
