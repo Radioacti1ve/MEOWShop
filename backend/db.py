@@ -1,55 +1,39 @@
-import asyncpg
-import json
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from typing import Optional
-from redis.asyncio import Redis
-import datetime
 
 DB_CONFIG = {
+    "dbname": "meowshop",
     "user": "postgres",
-    "password": "123",
-    "database": "meowshop",
+    "password": "postgres",
     "host": "db",
-    "port": 5432
+    "port": "5432"
 }
 
-redis_client = Redis(host='redis', port=6379, decode_responses=True)
+def get_db_connection():
+    return psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
 
-pool: asyncpg.pool.Pool | None = None
+def get_user_by_username(username: str) -> Optional[dict]:
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM "Users" WHERE username = %s', (username,))
+        user = cur.fetchone()
+        return dict(user) if user else None
+    finally:
+        conn.close()
 
-def default_serializer(obj):
-    if isinstance(obj, datetime.datetime):
-        return obj.isoformat()
-    raise TypeError(f"Type {type(obj)} not serializable")
-
-async def init_db_pool():
-    global pool
-    if pool is None:
-        pool = await asyncpg.create_pool(**DB_CONFIG)
-
-async def get_user_by_username(username: str) -> Optional[dict]:
-    cache_key = f"user:{username}"
-    cached = await redis_client.get(cache_key)
-    if cached:
-        return json.loads(cached)
-    
-    async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT * FROM "Users" WHERE username = $1', username)
-        if user:
-            user_dict = dict(user)
-            await redis_client.set(cache_key, json.dumps(user_dict, default=default_serializer), ex=3600)
-            return user_dict
-        return None
-
-async def create_user(username: str, email: str, hashed_password: str, role: str = "user") -> Optional[dict]:
-    async with pool.acquire() as conn:
-        user = await conn.fetchrow(
+def create_user(username: str, email: str, hashed_password: str, role: str = "user"):
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
             'INSERT INTO "Users" (username, email, password, role) '
-            'VALUES ($1, $2, $3, $4) RETURNING *',
-            username, email, hashed_password, role
+            'VALUES (%s, %s, %s, %s) RETURNING *',
+            (username, email, hashed_password, role)
         )
-        if user:
-            cache_key = f"user:{username}"
-            await redis_client.delete(cache_key)
-            return dict(user)
-        return None
-
+        conn.commit()
+        user = cur.fetchone()
+        return dict(user)
+    finally:
+        conn.close()
