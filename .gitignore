@@ -1,5 +1,73 @@
-# Игнорируем только Python cache файлы
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Виртуальное окружение
+venv/
+env/
+ENV/
+.env
+.venv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Логи и базы данных
+*.log
+*.sqlite3
+*.db
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Elasticsearch
+data/elasticsearch/
+
+# Redis
+dump.rdb
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# Временные файлы
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# Локальные конфигурации
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Файлы с чувствительными данными
+*.pem
+*.key
+*.crt
+secrets/

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
@@ -25,6 +23,24 @@ services:
     container_name: meowshop_redis
     restart: always
 
+  elasticsearch:
+    image: elasticsearch:8.8.0
+    container_name: meowshop_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: curl --silent --fail http://localhost:9200/_cluster/health || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: always
+
   backend:
     build: 
       context: ./backend
@@ -33,16 +49,20 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/meowshop
+      - DATABASE_URL=postgresql://postgres:123@db:5432/meowshop
       - REDIS_URL=redis://redis:6379
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
+      elasticsearch:
+        condition: service_healthy
     volumes:
       - ./backend:/app
     restart: always
 
 volumes:
   postgres_data:
+  elasticsearch_data:

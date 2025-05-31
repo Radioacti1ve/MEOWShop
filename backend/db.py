@@ -1,8 +1,14 @@
 import asyncpg
 import json
-from typing import Optional
+from typing import Optional, List
 from redis.asyncio import Redis
 import datetime
+import asyncio
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 DB_CONFIG = {
     "user": "postgres",
@@ -21,12 +27,44 @@ def default_serializer(obj):
         return obj.isoformat()
     raise TypeError(f"Type {type(obj)} not serializable")
 
-async def init_db_pool():
+async def init_db_pool(max_retries=5, retry_interval=5):
+    """Initialize database pool with retries"""
     global pool
-    if pool is None:
-        pool = await asyncpg.create_pool(**DB_CONFIG)
+    if pool is not None:
+        return pool
+
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Attempting to create database pool (attempt {attempt + 1}/{max_retries})")
+            pool = await asyncpg.create_pool(**DB_CONFIG)
+            
+            # Test the connection
+            async with pool.acquire() as conn:
+                await conn.fetchval('SELECT 1')
+            
+            logger.info("Successfully connected to the database")
+            return pool
+        except Exception as e:
+            logger.error(f"Failed to initialize database pool (attempt {attempt + 1}): {str(e)}")
+            if attempt < max_retries - 1:
+                logger.info(f"Retrying in {retry_interval} seconds...")
+                await asyncio.sleep(retry_interval)
+            else:
+                logger.error("Max retries reached, could not initialize database pool")
+                raise
+
+async def close_db_pool():
+    """Close the database pool"""
+    global pool
+    if pool:
+        await pool.close()
+        pool = None
 
 async def get_user_by_username(username: str) -> Optional[dict]:
+    global pool
+    if pool is None:
+        await init_db_pool()
+
     cache_key = f"user:{username}"
     cached = await redis_client.get(cache_key)
     if cached:
@@ -41,6 +79,10 @@ async def get_user_by_username(username: str) -> Optional[dict]:
         return None
 
 async def create_user(username: str, email: str, hashed_password: str, role: str = "user") -> Optional[dict]:
+    global pool
+    if pool is None:
+        await init_db_pool()
+
     async with pool.acquire() as conn:
         user = await conn.fetchrow(
             'INSERT INTO "Users" (username, email, password, role) '
@@ -52,4 +94,144 @@ async def create_user(username: str, email: str, hashed_password: str, role: str
             await redis_client.delete(cache_key)
             return dict(user)
         return None
-    
+
+async def create_pending_seller(
+    user_id: int,
+    company_name: str,
+    contact_phone: str,
+    tax_number: str,
+    documents_url: Optional[str] = None
+) -> Optional[dict]:
+    """Create a new pending seller application"""
+    global pool
+    if pool is None:
+        await init_db_pool()
+
+    async with pool.acquire() as conn:
+        try:
+            # Create pending seller record
+            seller = await conn.fetchrow(
+                '''
+                INSERT INTO "PendingSellers" (user_id, company_name, contact_phone, tax_number, documents_url)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING *
+                ''',
+                user_id, company_name, contact_phone, tax_number, documents_url
+            )
+            
+            return dict(seller) if seller else None
+
+        except asyncpg.UniqueViolationError:
+            return None
+
+async def get_pending_seller(pending_seller_id: int) -> Optional[dict]:
+    """Get pending seller by ID"""
+    global pool
+    if pool is None:
+        await init_db_pool()
+
+    async with pool.acquire() as conn:
+        seller = await conn.fetchrow(
+            '''
+            SELECT *
+            FROM "PendingSellers"
+            WHERE pending_seller_id = $1
+            ''',
+            pending_seller_id
+        )
+        return dict(seller) if seller else None
+
+async def get_pending_sellers_by_status(status: str) -> List[dict]:
+    """Get all pending sellers with specified status"""
+    global pool
+    if pool is None:
+        await init_db_pool()
+
+    async with pool.acquire() as conn:
+        sellers = await conn.fetch(
+            '''
+            SELECT ps.*, u.username, u.email
+            FROM "PendingSellers" ps
+            JOIN "Users" u ON ps.user_id = u.user_id
+            WHERE ps.status = $1
+            ORDER BY ps.created_at DESC
+            ''',
+            status
+        )
+        return [dict(seller) for seller in sellers]
+
+async def update_pending_seller_status(
+    pending_seller_id: int,
+    status: str,
+    admin_comment: Optional[str] = None
+) -> Optional[dict]:
+    """Update pending seller status"""
+    global pool
+    if pool is None:
+        await init_db_pool()
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # Get seller details before updating status
+            seller = await conn.fetchrow(
+                '''
+                SELECT *
+                FROM "PendingSellers"
+                WHERE pending_seller_id = $1
+                ''',
+                pending_seller_id
+            )
+            
+            if not seller:
+                return None
+
+            # Update pending seller status
+            updated_seller = await conn.fetchrow(
+                '''
+                UPDATE "PendingSellers"
+                SET status = $1, admin_comment = $2
+                WHERE pending_seller_id = $3
+                RETURNING *
+                ''',
+                status, admin_comment, pending_seller_id
+            )
+            
+            if not updated_seller:
+                return None
+
+            # If approved, create seller record and update user role
+            if status == 'approved':
+                # Update user role to seller
+                await conn.execute(
+                    'UPDATE "Users" SET role = $1 WHERE user_id = $2',
+                    'seller', seller['user_id']
+                )
+                
+                # Create seller record
+                await conn.execute(
+                    '''
+                    INSERT INTO "Sellers" (user_id)
+                    VALUES ($1)
+                    ''',
+                    seller['user_id']
+                )
+
+            return dict(updated_seller)
+
+async def get_pending_seller_by_user_id(user_id: int) -> Optional[dict]:
+    """Get pending seller application by user ID"""
+    global pool
+    if pool is None:
+        await init_db_pool()
+
+    async with pool.acquire() as conn:
+        seller = await conn.fetchrow(
+            '''
+            SELECT *
+            FROM "PendingSellers"
+            WHERE user_id = $1
+            ''',
+            user_id
+        )
+        return dict(seller) if seller else None
+
