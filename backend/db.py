@@ -52,3 +52,4 @@ async def create_user(username: str, email: str, hashed_password: str, role: str
             await redis_client.delete(cache_key)
             return dict(user)
         return None
+

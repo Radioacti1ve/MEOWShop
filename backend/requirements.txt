@@ -1,14 +1,22 @@
 fastapi==0.100.0
 uvicorn==0.23.2
 pydantic==1.10.12
+<<<<<<< backend_1
 python-jose
 cryptography
 asyncpg
+=======
+python-jose[cryptography]
+>>>>>>> develop
 passlib[bcrypt]
 python-dotenv
 psycopg2-binary
 bcrypt==4.0.1
+<<<<<<< backend_1
 python-multipart
 redis==4.6.0
 
 
+=======
+python-multipart
+>>>>>>> develop

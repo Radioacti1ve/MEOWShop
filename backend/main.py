@@ -35,7 +35,6 @@ async def shutdown_event():
 async def root():
     return {"message": "Welcome to MEOWShop API V 0.1"}
 
-# роутеры
 app.include_router(auth_router)
 app.include_router(products.router, prefix="/catalog", tags=["Products"])  
 app.include_router(product_router, prefix="/catalog")
