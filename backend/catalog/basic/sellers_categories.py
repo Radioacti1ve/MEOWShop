@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException
-import db
+from authorization import db
 
 router = APIRouter(prefix="/catalog", tags=["sellers_categories"])
 

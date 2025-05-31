@@ -1,13 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from auth import router as auth_router
-from catalog.basic import products 
-from catalog.basic.product import router as product_router 
+from authorization.auth import router as auth_router
+from catalog.basic import products
+from catalog.basic.product import router as product_router
 from catalog.basic.sellers_categories import router as sellers_categories_router
 from catalog.basic import comments
-from catalog.basic import comments_by_user 
+from catalog.basic import comments_by_user
 from catalog.basic_authorization import write_comments
-import db
+from catalog.basic_authorization import get_orders
+from authorization import db
 
 app = FastAPI(
     title="MEOWShop API",
@@ -44,3 +45,4 @@ app.include_router(sellers_categories_router)
 app.include_router(comments.router, prefix="/catalog", tags=["comments"])
 app.include_router(comments_by_user.router, prefix="/catalog/users")
 app.include_router(write_comments.router)
+app.include_router(get_orders.router, prefix="/catalog", tags=["orders"])

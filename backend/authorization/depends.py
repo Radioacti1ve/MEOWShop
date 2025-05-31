@@ -1,8 +1,8 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from typing import Annotated, Callable
-import db
-import security  
+from . import db, security
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -24,6 +24,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         )
 
     user = await db.get_user_by_username(username)
+    print("DEBUG: user from DB =", user)  
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     

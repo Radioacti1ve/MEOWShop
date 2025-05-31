@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
 from typing import Optional
-import db 
+from authorization import db
 
 router = APIRouter(tags=["comments_by_user"])
 

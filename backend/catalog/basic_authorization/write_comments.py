@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import Annotated
 import datetime
-import db
-from depends import get_current_user
+from authorization import db
+from authorization.depends import get_current_user
 
 router = APIRouter()
 
@@ -25,22 +25,18 @@ async def create_comment(
         raise HTTPException(status_code=500, detail="DB pool not initialized")
 
     async with db.pool.acquire() as conn:
-        # Проверка существования продукта
         product = await conn.fetchrow('SELECT product_id FROM "Products" WHERE product_id = $1', comment.product_id)
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
 
-        # Проверка существования родительского комментария
         if comment.reply_to_comment_id is not None:
             parent_comment = await conn.fetchrow('SELECT comment_id FROM "Comments" WHERE comment_id = $1', comment.reply_to_comment_id)
             if not parent_comment:
                 raise HTTPException(status_code=404, detail="Parent comment not found")
         
-        # Только обычные пользователи могут ставить оценки
         if current_user["role"] != "user" and comment.rating is not None:
             raise HTTPException(status_code=403, detail="Only users can rate products")
 
-        # Если это корневой комментарий от обычного пользователя — проверяем, что он ещё не оставлял такого
         if current_user["role"] == "user" and comment.reply_to_comment_id is None:
             existing = await conn.fetchrow('''
                 SELECT 1 FROM "Comments" 
@@ -49,7 +45,6 @@ async def create_comment(
             if existing:
                 raise HTTPException(status_code=400, detail="You have already written a root comment on this product")
 
-        # Если это ответ, то рейтинг запрещён
         if comment.reply_to_comment_id is not None and comment.rating is not None:
             raise HTTPException(status_code=400, detail="Replies cannot have a rating")
 
@@ -95,7 +90,10 @@ async def delete_comment(
         if not comment:
             raise HTTPException(status_code=404, detail="Comment not found")
 
-        if comment["user_id"] != current_user["user_id"]:
+        is_author = comment["user_id"] == current_user["user_id"]
+        is_admin = current_user["role"] == "admin"
+
+        if not is_author and not is_admin:
             raise HTTPException(status_code=403, detail="You can only delete your own comments")
 
         await conn.execute('''

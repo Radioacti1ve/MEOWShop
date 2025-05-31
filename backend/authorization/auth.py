@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
-import security, db
+from . import security, db
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
+
 
 router = APIRouter()
 
@@ -30,7 +31,11 @@ async def login(user: UserLogin):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password"
         )
-    token = security.create_access_token({"sub": user.username})
+
+    token = security.create_access_token({
+        "sub": user.username,
+        "role": db_user["role"]  
+    })
     return {"access_token": token, "token_type": "bearer"}
 
 @router.post("/register")
@@ -51,7 +56,6 @@ async def register(user: UserRegister):
             detail=f"Internal error: {e}"
         )
 
-
 @router.get("/protected", dependencies=[Depends(security_scheme)])
 async def protected_route(token: str = Depends(oauth2_scheme)):
     payload = security.verify_token(token)
@@ -61,4 +65,8 @@ async def protected_route(token: str = Depends(oauth2_scheme)):
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"}
         )
-    return {"message": "This is a protected route", "user": payload["sub"]}
+    return {
+        "message": "This is a protected route",
+        "user": payload["sub"],
+        "role": payload.get("role", "unknown")
+    }
