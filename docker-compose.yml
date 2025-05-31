@@ -20,6 +20,11 @@ services:
       retries: 5
     restart: always
 
+  redis:
+    image: redis:7
+    container_name: meowshop_redis
+    restart: always
+
   backend:
     build: 
       context: ./backend
@@ -29,9 +34,12 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/meowshop
+      - REDIS_URL=redis://redis:6379
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./backend:/app
     restart: always

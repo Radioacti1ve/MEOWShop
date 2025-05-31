@@ -1,16 +1,12 @@
-from fastapi import FastAPI, HTTPException, status, Request, Depends, Security
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, HTTPBearer
-from pydantic import BaseModel
-import security, db
-from catalog.basic import products
-from catalog.basic.product import router as product_router
+from auth import router as auth_router
+from catalog.basic import products 
+from catalog.basic.product import router as product_router 
+from catalog.basic.sellers_categories import router as sellers_categories_router
 from catalog.basic import comments
-from catalog.basic import comments_by_user
-from catalog.basic import sellers_categories
-
-security_scheme = HTTPBearer()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+from catalog.basic import comments_by_user 
+import db
 
 app = FastAPI(
     title="MEOWShop API",
@@ -26,68 +22,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class UserLogin(BaseModel):
-    username: str
-    password: str
+@app.on_event("startup")
+async def startup_event():
+    await db.init_db_pool()
 
-class UserRegister(BaseModel):
-    username: str
-    email: str
-    password: str
+@app.on_event("shutdown")
+async def shutdown_event():
+    if db.pool:
+        await db.pool.close()
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to MEOWShop API V 0.1"}
 
-@app.post("/login")
-async def login(user: UserLogin):
-    db_user = db.get_user_by_username(user.username)
-    if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
-        )
-    if not security.verify_password(user.password, db_user["password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
-        )
-    
-    token = security.create_access_token({"sub": user.username})
-    return {"access_token": token, "token_type": "bearer"}
-
-@app.post("/register")
-async def register(user: UserRegister):
-    existing_user = db.get_user_by_username(user.username)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
-        )
-    
-    hashed_password = security.get_password_hash(user.password)
-    new_user = db.create_user(user.username, user.email, hashed_password)
-    return {"message": "User created successfully", "user_id": new_user["user_id"]}
-
-@app.get("/protected", dependencies=[Depends(security_scheme)])
-async def protected_route(token: str = Depends(oauth2_scheme)):
-    payload = security.verify_token(token)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-    return {"message": "This is a protected route", "user": payload["sub"]}
-
-app.include_router(products.router, prefix="/api", tags=["products"])
-
-app.include_router(product_router, prefix="/api")
-
-app.include_router(comments.router, prefix="/api", tags=["comments"])
-
+# роутеры
+app.include_router(auth_router)
+app.include_router(products.router, prefix="/catalog", tags=["Products"])  
+app.include_router(product_router, prefix="/catalog")
+app.include_router(sellers_categories_router)
+app.include_router(comments.router, prefix="/catalog", tags=["comments"])
 app.include_router(comments_by_user.router)
-
-app.include_router(sellers_categories.router)
-
+app.include_router(comments_by_user.router, prefix="/catalog/users")
 
