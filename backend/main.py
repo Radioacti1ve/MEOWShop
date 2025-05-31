@@ -41,6 +41,6 @@ app.include_router(products.router, prefix="/catalog", tags=["Products"])
 app.include_router(product_router, prefix="/catalog")
 app.include_router(sellers_categories_router)
 app.include_router(comments.router, prefix="/catalog", tags=["comments"])
-app.include_router(comments_by_user.router)
 app.include_router(comments_by_user.router, prefix="/catalog/users")
+
 
