@@ -1,13 +1,13 @@
-from fastapi import APIRouter, Query, HTTPException
-from typing import Optional
+from fastapi import APIRouter, Query, HTTPException, Depends, status
+from typing import Optional, Annotated, Dict, Any
 import db
-import os
-import redis.asyncio as redis
+import logging
+from auth.depends import get_current_user
 
-router = APIRouter()
+router = APIRouter(tags=["Products"])
 
-redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
-redis_client = redis.from_url(redis_url, decode_responses=True)
+redis_client = db.redis_client
+logger = logging.getLogger(__name__)
 
 CACHE_TTL_SECONDS = 300  
 
@@ -32,6 +32,7 @@ async def get_products(
                 p.description,
                 p.category,
                 p.price,
+                p.status,
                 p.in_stock,
                 p.status,
                 ROUND(AVG(c.rating)::numeric, 2) AS avg_rating

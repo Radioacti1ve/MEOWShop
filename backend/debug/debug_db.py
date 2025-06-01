@@ -1,9 +1,9 @@
 import asyncio
-from elastic.sync import get_all_products
-from db import init_db_pool
+from ..elastic.sync import get_all_products
+from .. import db
 
 async def main():
-    await init_db_pool()
+    await db.init_db_pool()
     
     products = await get_all_products()
     print(f"Found {len(products)} products in PostgreSQL:")

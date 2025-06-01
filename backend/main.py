@@ -2,15 +2,20 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from auth import router as auth_router, admin_router
-from catalog.basic import products 
-from catalog.basic.product import router as product_router 
+from catalog.basic.products import router as products_router
+from catalog.basic.product import router as product_router
 from catalog.basic.sellers_categories import router as sellers_categories_router
 from catalog.basic import comments
 from catalog.basic import comments_by_user 
-from catalog.basic_authorization import write_comments
 from catalog.search.endpoints import router as search_router
-from catalog.basic.admin_routes import router as admin_router
+from catalog.admin.products_status import router as products_status_router
+from catalog.admin.ban_user import router as ban_user_router
 from debug.endpoints import router as debug_router
+from catalog.basic_authorization.get_orders import router as orders_router
+from catalog.basic_authorization.profile import router as profile_router
+from catalog.basic_authorization.write_comments import router as write_comments_router
+from catalog.client.cart import router as cart_router
+from catalog.client.gambling import router as gambling_router
 from elastic.client import get_elasticsearch_client
 from elastic.mappings import create_product_index, PRODUCT_INDEX_NAME
 import db
@@ -93,12 +98,27 @@ async def root():
 # Роутеры
 app.include_router(auth_router)
 app.include_router(admin_router)
-app.include_router(products.router, prefix="/catalog", tags=["Products"])
-app.include_router(product_router, prefix="/catalog")
+app.include_router(product_router, prefix="/catalog", tags=["Products"])
+app.include_router(products_router, prefix="/catalog", tags=["Products"])
 app.include_router(sellers_categories_router)
-app.include_router(comments.router, prefix="/catalog", tags=["comments"])
-app.include_router(comments_by_user.router, prefix="/catalog/users")
-app.include_router(write_comments.router)
-app.include_router(search_router)
-app.include_router(admin_router)
-app.include_router(debug_router)
+
+# Комментарии
+app.include_router(comments.router, prefix="/catalog", tags=["Comments"])
+app.include_router(comments_by_user.router, prefix="/catalog/users", tags=["Comments"])
+app.include_router(write_comments_router, prefix="/catalog", tags=["Comments"])
+
+# Поиск и профиль
+app.include_router(search_router, prefix="/catalog/search", tags=["Search"])
+app.include_router(profile_router, prefix="/users", tags=["Profile"])
+
+# Заказы
+app.include_router(orders_router, prefix="/users", tags=["Orders"])
+
+# Админ панель
+app.include_router(products_status_router, prefix="/admin", tags=["Admin"])
+app.include_router(ban_user_router, prefix="/admin", tags=["Admin"])
+app.include_router(debug_router, prefix="/debug", tags=["Debug"])
+
+# Корзина и покупки
+app.include_router(cart_router, prefix="/catalog", tags=["Cart"])
+app.include_router(gambling_router, prefix="/catalog/gambling", tags=["Purchase"])

@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Query, HTTPException
-from typing import Optional
-import db  
+from fastapi import APIRouter, Query, HTTPException, status
+from typing import Optional, List, Dict, Any
+import db
+import logging
 
-router = APIRouter()
+logger = logging.getLogger(__name__)
+router = APIRouter(tags=["Comments"])
 
 @router.get("/products/{product_id}/comments")
 async def get_comments_for_product(
@@ -35,5 +37,5 @@ async def get_comments_for_product(
         return [dict(comment) for comment in comments]
 
     except Exception as e:
-        print("ERROR:", e)
+        logger.error(f"Error fetching comments: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")

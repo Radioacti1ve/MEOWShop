@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Query, HTTPException
-from typing import Optional
-import db 
+from fastapi import APIRouter, Query, HTTPException, status
+from typing import Optional, List, Dict, Any
+import db
+import logging
 
-router = APIRouter(tags=["comments_by_user"])
+logger = logging.getLogger(__name__)
+router = APIRouter(tags=["Comments"])
 
 @router.get("/{user_id}/comments")
 async def get_comments_by_user(

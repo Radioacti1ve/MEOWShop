@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, status
+from typing import Optional, List, Dict, Any
 import db
+import logging
 
-router = APIRouter(prefix="/catalog", tags=["sellers_categories"])
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/catalog", tags=["Sellers & Categories"])
 
 @router.get("/sellers/")
 async def get_sellers(

@@ -4,7 +4,7 @@ import logging
 import db
 from .models import AdminRegister, AdminApproval, PendingAdminResponse
 from .security import get_password_hash
-from depends import get_current_user, require_role
+from .depends import get_current_user, require_role
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

@@ -2,8 +2,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Annotated, Callable
 import db
-from auth.security import oauth2_scheme
-from auth import security
+from .security import oauth2_scheme
+from . import security
 import logging
 
 logging.basicConfig(level=logging.INFO)

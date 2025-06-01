@@ -7,7 +7,7 @@ import db
 import logging
 from typing import Annotated, List
 from datetime import datetime
-from depends import get_current_user, require_role
+from .depends import get_current_user, require_role
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
