@@ -48,6 +48,27 @@ async def purchase_items(current_user: Annotated[dict, Depends(get_current_user)
             )
             order_id = order["order_id"]
 
+            old_data = await conn.fetchrow(
+                '''
+                SELECT u.username, u.email, s.description
+                FROM "Users" u
+                LEFT JOIN "Sellers" s ON u.user_id = s.user_id
+                WHERE u.user_id = $1
+                ''',
+                current_user["user_id"]
+            )
+
+            await conn.execute(
+                '''
+                INSERT INTO "User_profile_history" (user_id, old_username, old_email, old_description)
+                VALUES ($1, $2, $3, $4)
+                ''',
+                current_user["user_id"],
+                old_data["username"],
+                old_data["email"],
+                old_data["description"] if "description" in old_data else None
+            )
+
             await conn.execute(
                 '''
                 INSERT INTO "Order_events" (user_id, order_id, total_price)

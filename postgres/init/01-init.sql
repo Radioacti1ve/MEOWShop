@@ -127,3 +127,11 @@ CREATE TABLE IF NOT EXISTS "Auth_events" (
     "event_time" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS "User_profile_history" (
+    "id" SERIAL PRIMARY KEY,
+    "user_id" INTEGER REFERENCES "Users"("user_id") ON DELETE CASCADE,
+    "old_username" VARCHAR(255),
+    "old_email" VARCHAR(255),
+    "old_description" TEXT,
+    "changed_at" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

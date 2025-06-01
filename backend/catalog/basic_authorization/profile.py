@@ -26,6 +26,27 @@ async def update_profile(
         if email_check:
             raise HTTPException(status_code=400, detail="Email already in use")
 
+        old_data = await conn.fetchrow(
+            '''
+            SELECT u.username, u.email, s.description
+            FROM "Users" u
+            LEFT JOIN "Sellers" s ON u.user_id = s.user_id
+            WHERE u.user_id = $1
+            ''',
+            user_id
+        )
+
+        await conn.execute(
+            '''
+            INSERT INTO "User_profile_history" (user_id, old_username, old_email, old_description)
+            VALUES ($1, $2, $3, $4)
+            ''',
+            user_id,
+            old_data["username"],
+            old_data["email"],
+            old_data["description"] if "description" in old_data else None
+        )
+
         await conn.execute(
             'UPDATE "Users" SET username = $1, email = $2 WHERE user_id = $3',
             new_username, new_email, user_id
