@@ -10,6 +10,9 @@ from catalog.basic_authorization import write_comments
 from catalog.basic_authorization import get_orders
 from catalog.client import cart
 from catalog.client.gambling import router as gambling_router
+from catalog.basic_authorization.profile import router as profile_router
+from catalog.admin import ban_user
+from catalog.admin import products_status 
 from authorization import db
 
 
@@ -51,3 +54,7 @@ app.include_router(write_comments.router)
 app.include_router(get_orders.router, prefix="/catalog", tags=["orders"])
 app.include_router(cart.router)
 app.include_router(gambling_router)
+app.include_router(profile_router, prefix="/catalog", tags=["profile"])
+app.include_router(ban_user.router, prefix="/admin", tags=["admin"])
+app.include_router(products_status.router)
+

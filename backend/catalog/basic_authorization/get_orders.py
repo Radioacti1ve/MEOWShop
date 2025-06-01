@@ -23,10 +23,8 @@ async def get_orders(
     role = current_user.get("role")
     current_id = current_user.get("user_id")
 
-    # Роль для отладки
     print(f"User ID: {current_id}, Role: {role}, Requested user_id: {user_id}")
 
-    # Определяем, для кого загружаем заказы
     if role == "admin":
         target_user_id = user_id if user_id is not None else current_id
     else:

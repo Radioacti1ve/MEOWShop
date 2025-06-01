@@ -30,10 +30,14 @@ async def purchase_items(current_user: Annotated[dict, Depends(get_current_user)
 
             for item in basket_items:
                 product = await conn.fetchrow(
-                    'SELECT in_stock FROM "Products" WHERE product_id = $1',
+                    'SELECT in_stock, status FROM "Products" WHERE product_id = $1',
                     item["product_id"]
                 )
-                if not product or product["in_stock"] < item["quantity"]:
+                if not product:
+                    raise HTTPException(status_code=404, detail=f"Product {item['product_id']} not found")
+                if product["status"] != "available":
+                    raise HTTPException(status_code=400, detail=f"Product {item['product_id']} is not available for purchase")
+                if product["in_stock"] < item["quantity"]:
                     raise HTTPException(status_code=400, detail=f"Not enough stock for product_id {item['product_id']}")
 
             total_price = sum(item["price_"] * item["quantity"] for item in basket_items)

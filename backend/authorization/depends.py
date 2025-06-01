@@ -28,7 +28,14 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    if not user.get("is_active", True):  
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is inactive"
+        )
+
     return user
+
 
 def require_role(required_roles: list[str]) -> Callable:
     async def role_checker(current_user: Annotated[dict, Depends(get_current_user)]):

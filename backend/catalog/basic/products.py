@@ -32,6 +32,7 @@ async def get_products(
                 p.description,
                 p.category,
                 p.price,
+                p.status,
                 p.in_stock,
                 p.status,
                 ROUND(AVG(c.rating)::numeric, 2) AS avg_rating

@@ -12,7 +12,7 @@ DB_CONFIG = {
     "port": 5432
 }
 
-redis_client = Redis(host='redis', port=6379, decode_responses=True)
+redis_client = Redis(host='redis', port=6379, decode_responses=True, socket_connect_timeout=5, socket_timeout=5)
 
 pool: asyncpg.pool.Pool | None = None
 
@@ -52,4 +52,7 @@ async def create_user(username: str, email: str, hashed_password: str, role: str
             await redis_client.delete(cache_key)
             return dict(user)
         return None
+    
+
+
     
