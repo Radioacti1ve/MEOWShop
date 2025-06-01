@@ -52,8 +52,8 @@ echo "13. Категория=Электроника, нет в наличии, �
 curl "http://localhost:8000/catalog/products?category=%D0%AD%D0%BB%D0%B5%D0%BA%D1%82%D1%80%D0%BE%D0%BD%D0%B8%D0%BA%D0%B0&in_stock=false&sort_by=price_asc" | jq
 echo -e "\n----------------------------\n"
 
-echo "14. Пустые параметры (проверка default поведения)"
-curl "http://localhost:8000/catalog/products?category=&min_price=&max_price=&in_stock=&sort_by=" | jq
+echo "14. Параметры по умолчанию (без фильтров)"
+curl "http://localhost:8000/catalog/products" | jq
 echo -e "\n----------------------------\n"
 
 echo "15. Все товары от продавца с seller id=3, отсортированные по убыванию рейтинга"
@@ -61,7 +61,7 @@ curl "http://localhost:8000/catalog/products?seller_id=3&in_stock=true&sort_by=r
 echo -e "\n----------------------------\n"
 
 echo "16. Проверка файла product.py"
-curl http://localhost:8000/catalog/products/7 | jq
+curl http://localhost:8000/catalog/product/7 | jq
 echo -e "\n----------------------------\n"
 
 echo "17. Проверка файла comments.py"

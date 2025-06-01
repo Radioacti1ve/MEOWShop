@@ -3,7 +3,7 @@ PASSWORD="password123"
 EMAIL="${USERNAME}@example.com"
 
 echo "📌 Регистрируем пользователя: $USERNAME"
-curl -s -X POST http://localhost:8000/register -H "Content-Type: application/json" -d '{
+curl -s -X POST http://localhost:8000/auth/register -H "Content-Type: application/json" -d '{
   "username": "'"$USERNAME"'",
   "email": "'"$EMAIL"'",
   "password": "'"$PASSWORD"'"
@@ -11,7 +11,7 @@ curl -s -X POST http://localhost:8000/register -H "Content-Type: application/jso
 echo -e "\n"
 
 echo "📌 Авторизация пользователя: $USERNAME"
-RESPONSE=$(curl -s -X POST http://localhost:8000/login \
+RESPONSE=$(curl -s -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
   -d "{\"username\":\"$USERNAME\", \"password\":\"$PASSWORD\"}")
 
@@ -29,7 +29,7 @@ NEW_USERNAME="${USERNAME}_updated"
 NEW_EMAIL="${NEW_USERNAME}@example.com"
 
 echo -e "\n📌 Обновляем профиль пользователя (username и email)"
-curl -s -X PUT http://localhost:8000/catalog/profile/update \
+curl -s -X PUT http://localhost:8000/users/profile/update \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
