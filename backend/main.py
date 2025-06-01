@@ -24,7 +24,17 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="MEOWShop API",
     description="API для MEOWShop с аутентификацией",
-    version="0.1"
+    version="0.1",
+    openapi_tags=[
+        {
+            "name": "Authentication",
+            "description": "Операции авторизации и аутентификации"
+        }
+    ],
+    swagger_ui_init_oauth={
+        "usePkceWithAuthorizationCodeGrant": True,
+        "useBasicAuthenticationWithAccessCodeGrant": True
+    }
 )
 
 app.add_middleware(

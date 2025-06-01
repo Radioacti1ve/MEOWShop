@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, HTTPBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from .models import UserLogin, UserRegister, Token, TokenRefresh, SellerRegister, PendingSellerResponse, SellerApproval, AdminRegister, PendingAdminResponse, AdminApproval
+from .security import oauth2_scheme
 from . import security
 import db
 import logging
@@ -17,9 +18,6 @@ router = APIRouter(
     tags=["Authentication"],
     responses={404: {"description": "Not found"}},
 )
-
-security_scheme = HTTPBearer()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 @router.post("/login", response_model=Token, summary="User login")
 async def login(user: UserLogin):
@@ -88,12 +86,12 @@ async def register(user: UserRegister):
         )
 
 @router.get("/me", summary="Get current user")
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+async def get_current_user(token: Annotated[HTTPAuthorizationCredentials, Depends(oauth2_scheme)]):
     """
     Get information about the currently authenticated user.
     """
     try:
-        payload = security.verify_token(token)
+        payload = security.verify_token(token.credentials)  # Используем token.credentials вместо token
         if not payload:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -121,18 +119,28 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         )
 
 @router.post("/refresh", response_model=Token, summary="Refresh access token")
-async def refresh_token(token: TokenRefresh):
+async def refresh_token(refresh_data: TokenRefresh):
     """
     Get a new access token using a refresh token.
     
     - **refresh_token**: A valid refresh token
     """
     try:
-        payload = security.verify_token(token.refresh_token, token_type="refresh")
-        access_token, refresh_token, expires_in = security.create_tokens({"sub": payload["sub"]})
+        payload = security.verify_token(refresh_data.refresh_token, token_type="refresh")
+        access_token, new_refresh_token, expires_in = security.create_tokens({"sub": payload["sub"]})
+        # Немедленно добавляем старый refresh токен в черный список
+        try:
+            exp = payload.get("exp", 0)
+            now = datetime.utcnow().timestamp()
+            ttl = int(exp - now)
+            if ttl > 0:
+                security.blacklist_token(refresh_data.refresh_token, ttl)
+        except Exception as e:
+            logger.warning(f"Error blacklisting old refresh token: {str(e)}")
+            
         return {
             "access_token": access_token,
-            "refresh_token": refresh_token,
+            "refresh_token": new_refresh_token,
             "token_type": "bearer",
             "expires_in": expires_in
         }
@@ -146,17 +154,17 @@ async def refresh_token(token: TokenRefresh):
         )
 
 @router.post("/logout", status_code=status.HTTP_200_OK, summary="Logout user")
-async def logout(token: Annotated[str, Depends(oauth2_scheme)]):
+async def logout(token: Annotated[HTTPAuthorizationCredentials, Depends(oauth2_scheme)]):
     """
     Logout the current user by blacklisting their token.
     """
     try:
-        payload = security.verify_token(token)
+        payload = security.verify_token(token.credentials)
         exp = payload.get("exp", 0)
         now = datetime.utcnow().timestamp()
         ttl = int(exp - now)
         if ttl > 0:
-            security.blacklist_token(token, ttl)
+            security.blacklist_token(token.credentials, ttl)
         return {"message": "Successfully logged out"}
     except Exception as e:
         logger.error(f"Logout error: {str(e)}")

@@ -6,25 +6,31 @@ from dotenv import load_dotenv
 from typing import Optional, Tuple
 import redis
 from fastapi import HTTPException, status
+from fastapi.security import HTTPBearer
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# JWT settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 
-# Redis connection for token blacklist
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-redis_client = redis.from_url(REDIS_URL)
-
+# Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Token creation
+oauth2_scheme = HTTPBearer(
+    scheme_name="Bearer Authentication",
+    description="JWT Bearer token",
+    auto_error=True
+)
+
+# Redis client for blacklisted tokens
+redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
 
 def verify_password(plain_password: str, stored_password: str) -> bool:
     """Verify a password against stored password (hash or plain text during transition)."""
@@ -58,7 +64,7 @@ def create_tokens(data: dict) -> Tuple[str, str, int]:
 def verify_token(token: str, token_type: str = "access") -> dict:
     """Verify JWT token."""
     try:
-        # Check if token is blacklisted
+        # Проверяем blacklist
         try:
             if redis_client.get(f"blacklist:{token}"):
                 raise HTTPException(
@@ -68,11 +74,20 @@ def verify_token(token: str, token_type: str = "access") -> dict:
                 )
         except redis.RedisError as e:
             logger.error(f"Redis error while checking blacklist: {str(e)}")
-            # Continue with token verification even if Redis is unavailable
-            
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            # Продолжаем выполнение, так как ошибка Redis не должна блокировать доступ
         
-        # Verify token type
+        # Декодируем JWT
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        except JWTError as e:
+            logger.error(f"JWT verification error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            
+        # Проверяем тип токена
         if payload.get("type") != token_type:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -80,6 +95,7 @@ def verify_token(token: str, token_type: str = "access") -> dict:
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
+        # Проверяем claims
         if not payload or not payload.get("sub"):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -89,17 +105,8 @@ def verify_token(token: str, token_type: str = "access") -> dict:
             
         return payload
         
-    except JWTError as e:
-        logger.error(f"JWT verification error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except redis.RedisError as e:
-        logger.error(f"Redis error: {str(e)}")
-        # Continue with token verification even if Redis is unavailable
-        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Unexpected error during token verification: {str(e)}")
         raise HTTPException(
@@ -114,4 +121,3 @@ def blacklist_token(token: str, expires_in: int) -> None:
         redis_client.setex(f"blacklist:{token}", expires_in, "1")
     except redis.RedisError as e:
         logger.error(f"Redis error while blacklisting token: {e}")
-        # Continue even if Redis is unavailable
