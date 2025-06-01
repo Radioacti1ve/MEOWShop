@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from pydantic import BaseModel
 from . import security, db
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
@@ -19,7 +19,7 @@ class UserRegister(BaseModel):
     password: str
 
 @router.post("/login")
-async def login(user: UserLogin):
+async def login(user: UserLogin, request: Request):
     db_user = await db.get_user_by_username(user.username)
     if not db_user:
         raise HTTPException(
@@ -36,10 +36,23 @@ async def login(user: UserLogin):
         "sub": user.username,
         "role": db_user["role"]  
     })
+
+    ip_address = request.client.host
+    user_agent = request.headers.get("user-agent", "unknown")
+
+    async with db.pool.acquire() as conn:
+        await conn.execute(
+            '''
+            INSERT INTO "Auth_events" (user_id, event_type, ip_address, user_agent)
+            VALUES ($1, 'login', $2, $3)
+            ''',
+            db_user["user_id"], ip_address, user_agent
+        )
+
     return {"access_token": token, "token_type": "bearer"}
 
 @router.post("/register")
-async def register(user: UserRegister):
+async def register(user: UserRegister, request: Request):
     try:
         existing_user = await db.get_user_by_username(user.username)
         if existing_user:
@@ -49,6 +62,18 @@ async def register(user: UserRegister):
             )
         hashed_password = security.get_password_hash(user.password)
         new_user = await db.create_user(user.username, user.email, hashed_password)
+
+        ip_address = request.client.host
+        user_agent = request.headers.get("user-agent", "unknown")
+
+        async with db.pool.acquire() as conn:
+            await conn.execute(
+                '''
+                INSERT INTO "Auth_events" (user_id, event_type, ip_address, user_agent)
+                VALUES ($1, 'register', $2, $3)
+                ''',
+                new_user["user_id"], ip_address, user_agent
+            )
         return {"message": "User created successfully", "user_id": new_user["user_id"]}
     except Exception as e:
         raise HTTPException(

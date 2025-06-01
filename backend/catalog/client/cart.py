@@ -77,6 +77,14 @@ async def add_to_cart(
                     basket_id, product_id, quantity, product["price"]
                 )
 
+            await conn.execute(
+                '''
+                INSERT INTO "Cart_actions" (user_id, product_id, action_type, quantity)
+                VALUES ($1, $2, 'add', $3)
+                ''',
+                current_user["user_id"], product_id, quantity
+            )
+
             return {"detail": "Product added to cart"}
 
 
@@ -100,6 +108,14 @@ async def remove_from_cart(
         )
         if result == "DELETE 0":
             raise HTTPException(status_code=404, detail="Product not found in cart")
+        
+        await conn.execute(
+                '''
+                INSERT INTO "Cart_actions" (user_id, product_id, action_type, quantity)
+                VALUES ($1, $2, 'remove', 1)
+                ''',
+                current_user["user_id"], product_id
+            )
 
         return {"detail": "Product removed from cart"}
     
@@ -144,6 +160,14 @@ async def increase_quantity(
                 quantity, item["id"]
             )
 
+            await conn.execute(
+                '''
+                INSERT INTO "Cart_actions" (user_id, product_id, action_type, quantity)
+                VALUES ($1, $2, 'increase', $3)
+                ''',
+                current_user["user_id"], product_id, quantity
+            )
+
             return {"detail": f"Quantity increased by {quantity}"}
         
 # Уменьшить количество товара в корзине
@@ -173,6 +197,15 @@ async def decrease_quantity(
                 raise HTTPException(status_code=404, detail="Product not in cart")
 
             new_quantity = item["quantity"] - quantity
+
+            await conn.execute(
+                '''
+                INSERT INTO "Cart_actions" (user_id, product_id, action_type, quantity)
+                VALUES ($1, $2, 'decrease', $3)
+                ''',
+                current_user["user_id"], product_id, quantity
+            )
+            
             if new_quantity > 0:
                 await conn.execute(
                     'UPDATE "Baskets_items" SET quantity = $1 WHERE id = $2',
