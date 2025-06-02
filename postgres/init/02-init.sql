@@ -24,7 +24,8 @@ INSERT INTO "Products" ("seller_id", "product_name", "description", "category", 
 (3, 'Кофемашина De''Longhi ECP 33.21', 'Рожковая кофемашина с капучинатором', 'Бытовая техника', 24990.00, 8, 'available'),
 (3, 'Холодильник Beko RCNA400K20W', 'Двухкамерный холодильник с No Frost, 395 л', 'Бытовая техника', 45990.00, 5, 'available'),
 (3, 'Пылесос Philips PowerPro Expert', 'Мощность 650 Вт, мешок для пыли 2 л', 'Бытовая техника', 8990.00, 12, 'available'),
-(1, 'Power Bank 20000 mAh', 'Универсальный power bank с быстрой зарядкой', 'Электроника', 2990.00, 0, 'out_of_stock');
+(1, 'Power Bank 20000 mAh', 'Универсальный power bank с быстрой зарядкой', 'Электроника', 2990.00, 0, 'out_of_stock'),
+(2, 'Рубашка мужская Oversize', 'Хлопковая рубашка свободного кроя, черная', 'Одежда', 3000.00, 50, 'waiting');
 
 INSERT INTO "Product_images" ("product_id", "image_filename", "position") VALUES
 (1, 'xiaomi_redmi_note_11.jpg', 0),

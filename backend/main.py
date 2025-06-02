@@ -10,6 +10,7 @@ from catalog.basic import comments_by_user
 from catalog.search.endpoints import router as search_router
 from catalog.admin.products_status import router as products_status_router
 from catalog.admin.ban_user import router as ban_user_router
+from catalog.admin.waiting_products import router as waiting_products_router
 from debug.endpoints import router as debug_router
 from catalog.basic_authorization.get_orders import router as orders_router
 from catalog.basic_authorization.profile import router as profile_router
@@ -117,6 +118,7 @@ app.include_router(orders_router, prefix="/users", tags=["Orders"])
 # Админ панель
 app.include_router(products_status_router, prefix="/admin", tags=["Admin"])
 app.include_router(ban_user_router, prefix="/admin", tags=["Admin"])
+app.include_router(waiting_products_router, prefix="/admin", tags=["Admin"])
 app.include_router(debug_router, prefix="/debug", tags=["Debug"])
 
 # Корзина и покупки
