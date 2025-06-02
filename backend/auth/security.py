@@ -19,33 +19,25 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 
-# Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Token creation
 oauth2_scheme = HTTPBearer(
     scheme_name="Bearer Authentication",
     description="JWT Bearer token",
     auto_error=True
 )
 
-# Redis client for blacklisted tokens
 redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
 
 def verify_password(plain_password: str, stored_password: str) -> bool:
-    """Verify a password against stored password (hash or plain text during transition)."""
-    # Временное решение: если пароль в базе начинается с $2b$ (bcrypt hash), используем bcrypt
-    # иначе сравниваем как обычный текст
     if stored_password.startswith('$2b$'):
         return pwd_context.verify(plain_password, stored_password)
-    return plain_password == stored_password  # Для старых паролей в базе
+    return plain_password == stored_password 
 
 def get_password_hash(password: str) -> str:
-    """Generate password hash."""
     return pwd_context.hash(password)
 
 def create_tokens(data: dict) -> Tuple[str, str, int]:
-    """Create access and refresh tokens."""
     access_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     
@@ -62,9 +54,7 @@ def create_tokens(data: dict) -> Tuple[str, str, int]:
     return access_token, refresh_token, int(access_expires.total_seconds())
 
 def verify_token(token: str, token_type: str = "access") -> dict:
-    """Verify JWT token."""
     try:
-        # Проверяем blacklist
         try:
             if redis_client.get(f"blacklist:{token}"):
                 raise HTTPException(
@@ -74,9 +64,6 @@ def verify_token(token: str, token_type: str = "access") -> dict:
                 )
         except redis.RedisError as e:
             logger.error(f"Redis error while checking blacklist: {str(e)}")
-            # Продолжаем выполнение, так как ошибка Redis не должна блокировать доступ
-        
-        # Декодируем JWT
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         except JWTError as e:
@@ -87,7 +74,6 @@ def verify_token(token: str, token_type: str = "access") -> dict:
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
-        # Проверяем тип токена
         if payload.get("type") != token_type:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -95,7 +81,6 @@ def verify_token(token: str, token_type: str = "access") -> dict:
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
-        # Проверяем claims
         if not payload or not payload.get("sub"):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -116,7 +101,6 @@ def verify_token(token: str, token_type: str = "access") -> dict:
         )
 
 def blacklist_token(token: str, expires_in: int) -> None:
-    """Add a token to the blacklist."""
     try:
         redis_client.setex(f"blacklist:{token}", expires_in, "1")
     except redis.RedisError as e:

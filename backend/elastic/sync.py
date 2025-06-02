@@ -10,7 +10,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def get_all_products() -> List[Dict[str, Any]]:
-    """Get all products from PostgreSQL database"""
     try:
         await db.init_db_pool()
         
@@ -40,7 +39,6 @@ async def get_all_products() -> List[Dict[str, Any]]:
         raise
 
 async def sync_products_to_elasticsearch():
-    """Synchronize all products from PostgreSQL to Elasticsearch"""
     logger.info("Starting synchronization process...")
     
     try:
@@ -136,7 +134,6 @@ async def sync_product_to_elasticsearch(product_id: str):
         raise
 
 async def delete_product_from_elasticsearch(product_id: str):
-    """Delete a product from Elasticsearch"""
     es_client = get_elasticsearch_client()
     await es_client.initialize()
     try:

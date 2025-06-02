@@ -14,7 +14,6 @@ class SearchService:
         page: int = 1,
         page_size: int = 20
     ) -> Dict[str, Any]:
-        """Search for products with pagination"""
         must_conditions = [{
             "multi_match": {
                 "query": query,
@@ -54,7 +53,6 @@ class SearchService:
         }
 
     async def suggest_products(self, prefix: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """Get product name suggestions for autocomplete"""
         body = {
             "size": limit,
             "_source": ["product_id", "product_name", "category", "price"],
@@ -123,7 +121,6 @@ class SearchService:
         } for hit in response["hits"]["hits"]]
 
     async def get_similar_products(self, product_id: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """Find similar products based on content and context"""
         try:
             product = await self.es_client.get_client().get(
                 index=PRODUCT_INDEX_NAME,

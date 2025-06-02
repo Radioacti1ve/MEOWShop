@@ -10,7 +10,6 @@ router = APIRouter(
 
 @router.get("/sync")
 async def debug_sync():
-    """Force synchronization with Elasticsearch"""
     try:
         await db.init_db_pool()
         
@@ -24,7 +23,6 @@ async def debug_sync():
 
 @router.get("/test-db")
 async def test_db_connection():
-    """Test database connection and check tables"""
     try:
         await db.init_db_pool()
         results = {}
@@ -66,7 +64,6 @@ async def test_db_connection():
 
 @router.get("/postgres")
 async def debug_postgres():
-    """Get all products from PostgreSQL for debugging"""
     products = await get_all_products()
     return {
         "count": len(products),

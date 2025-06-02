@@ -39,7 +39,6 @@ async def ban_user(
             user_id
         )
         
-        # Очищаем кэш пользователя
         cache_key = f"user:{target_user['username']}"
         await db.redis_client.delete(cache_key)
 
@@ -73,7 +72,6 @@ async def unban_user(
             user_id
         )
         
-        # Очищаем кэш пользователя
         cache_key = f"user:{target_user['username']}"
         await db.redis_client.delete(cache_key)
 

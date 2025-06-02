@@ -102,7 +102,6 @@ PRODUCT_MAPPINGS: Dict[str, Any] = {
 }
 
 async def create_product_index(client):
-    """Create the product index if it doesn't exist"""
     if await client.indices.exists(index=PRODUCT_INDEX_NAME):
         await client.indices.delete(index=PRODUCT_INDEX_NAME)
     await client.indices.create(

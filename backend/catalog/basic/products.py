@@ -93,7 +93,6 @@ async def get_products(
             cached = await redis_client.get(cache_key)
             if cached is not None:
                 return cached
-            # Если в кеше нет, кешируем то, что пришло из базы (если рейтинг None, то "нет оценок")
             rating_str = str(db_rating) if db_rating is not None else "нет оценок"
             if db_rating is not None:
                 await redis_client.set(cache_key, rating_str, ex=CACHE_TTL_SECONDS)

@@ -6,7 +6,6 @@ from .models import AdminRegister, AdminApproval, PendingAdminResponse
 from .security import get_password_hash
 from .depends import get_current_user, require_role
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -18,12 +17,7 @@ router = APIRouter(
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=PendingAdminResponse)
 async def register_admin(admin: AdminRegister):
-    """
-    Register a new administrator. Creates a user account and a pending admin application.
-    The application must be approved by a super admin before the admin privileges are granted.
-    """
     try:
-        # Проверяем, не занято ли имя пользователя
         existing_user = await db.get_user_by_username(admin.username)
         if existing_user:
             raise HTTPException(
@@ -31,7 +25,6 @@ async def register_admin(admin: AdminRegister):
                 detail="Username already registered"
             )
 
-        # Создаём аккаунт пользователя
         hashed_password = get_password_hash(admin.password)
         new_user = await db.create_user(admin.username, admin.email, hashed_password)
         if not new_user:
@@ -40,7 +33,6 @@ async def register_admin(admin: AdminRegister):
                 detail="Failed to create user account"
             )
 
-        # Создаём заявку на регистрацию админа
         pending_admin = await db.create_pending_admin(new_user["user_id"])
         if not pending_admin:
             raise HTTPException(
@@ -63,7 +55,6 @@ async def register_admin(admin: AdminRegister):
 async def get_pending_admins(
     current_user: Annotated[dict, Depends(require_role(["super_admin"]))]
 ):
-    """Get all pending admin applications. Only accessible by super admins."""
     try:
         return await db.get_pending_admins_by_status("pending")
     except Exception as e:
@@ -77,7 +68,6 @@ async def get_pending_admins(
 async def get_admin_application_status(
     current_user: Annotated[dict, Depends(get_current_user)]
 ):
-    """Get the status of the current user's admin application."""
     try:
         pending_admin = await db.get_pending_admin_by_user_id(current_user["user_id"])
         if not pending_admin:
@@ -103,7 +93,6 @@ async def approve_admin(
 ):
     """Approve or reject a pending admin application. Only accessible by super admins."""
     try:
-        # Проверяем существование заявки
         existing_application = await db.get_pending_admin_by_id(pending_admin_id)
         if not existing_application:
             raise HTTPException(
@@ -111,7 +100,6 @@ async def approve_admin(
                 detail="Admin application not found"
             )
 
-        # Обновляем статус заявки
         updated_admin = await db.update_pending_admin_status(
             pending_admin_id=pending_admin_id,
             status=approval.status,

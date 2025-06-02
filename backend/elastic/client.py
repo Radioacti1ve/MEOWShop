@@ -23,12 +23,10 @@ class ElasticsearchClient:
             self.client = None
 
     def get_client(self) -> AsyncElasticsearch:
-        """Get the Elasticsearch client instance"""
         if not self.client:
             raise RuntimeError("Elasticsearch client not initialized")
         return self.client
 
 @lru_cache()
 def get_elasticsearch_client() -> ElasticsearchClient:
-    """Singleton factory function for ElasticsearchClient"""
     return ElasticsearchClient()

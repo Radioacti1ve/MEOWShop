@@ -27,7 +27,6 @@ def default_serializer(obj):
     raise TypeError(f"Type {type(obj)} not serializable")
 
 async def init_db_pool(max_retries=5, retry_interval=5):
-    """Initialize database pool with retries"""
     global pool
     if pool is not None:
         return pool
@@ -52,7 +51,6 @@ async def init_db_pool(max_retries=5, retry_interval=5):
                 raise
 
 async def close_db_pool():
-    """Close the database pool"""
     global pool
     if pool:
         await pool.close()
@@ -94,7 +92,6 @@ async def create_user(username: str, email: str, hashed_password: str, role: str
         return None
 
 async def create_pending_seller(user_id: int) -> Optional[dict]:
-    """Create a new pending seller application"""
     global pool
     if pool is None:
         await init_db_pool()
@@ -116,7 +113,6 @@ async def create_pending_seller(user_id: int) -> Optional[dict]:
             return None
 
 async def get_pending_seller(pending_seller_id: int) -> Optional[dict]:
-    """Get pending seller by ID"""
     global pool
     if pool is None:
         await init_db_pool()
@@ -133,7 +129,6 @@ async def get_pending_seller(pending_seller_id: int) -> Optional[dict]:
         return dict(seller) if seller else None
 
 async def get_pending_sellers_by_status(status: str) -> List[dict]:
-    """Get all pending sellers with specified status"""
     global pool
     if pool is None:
         await init_db_pool()
@@ -156,7 +151,6 @@ async def update_pending_seller_status(
     status: str,
     admin_comment: Optional[str] = None
 ) -> Optional[dict]:
-    """Update pending seller status"""
     global pool
     if pool is None:
         await init_db_pool()
@@ -205,7 +199,6 @@ async def update_pending_seller_status(
             return dict(updated_seller)
 
 async def get_pending_seller_by_user_id(user_id: int) -> Optional[dict]:
-    """Get pending seller application by user ID"""
     global pool
     if pool is None:
         await init_db_pool()
@@ -222,7 +215,6 @@ async def get_pending_seller_by_user_id(user_id: int) -> Optional[dict]:
         return dict(seller) if seller else None
 
 async def create_pending_admin(user_id: int) -> dict:
-    """Create a pending admin application"""
     query = '''
         INSERT INTO pending_admins (user_id)
         VALUES ($1)
@@ -233,14 +225,12 @@ async def create_pending_admin(user_id: int) -> dict:
         return dict(row) if row else None
 
 async def get_pending_admin_by_id(pending_admin_id: int) -> dict:
-    """Get a pending admin application by ID"""
     query = 'SELECT * FROM pending_admins WHERE pending_admin_id = $1'
     async with pool.acquire() as conn:
         row = await conn.fetchrow(query, pending_admin_id)
         return dict(row) if row else None
 
 async def get_pending_admins_by_status(status: str) -> list:
-    """Get all pending admin applications with given status"""
     query = 'SELECT * FROM pending_admins WHERE status = $1'
     async with pool.acquire() as conn:
         rows = await conn.fetch(query, status)
@@ -251,7 +241,6 @@ async def update_pending_admin_status(
     status: str,
     approver_comment: str = None
 ) -> dict:
-    """Update the status of a pending admin application"""
     query = '''
         UPDATE pending_admins
         SET status = $1, approver_comment = $2
@@ -265,7 +254,6 @@ async def update_pending_admin_status(
         return dict(row) if row else None
 
 async def get_pending_admin_by_user_id(user_id: int) -> dict:
-    """Get the most recent pending admin application for a user"""
     query = '''
         SELECT * FROM pending_admins 
         WHERE user_id = $1 
@@ -277,7 +265,6 @@ async def get_pending_admin_by_user_id(user_id: int) -> dict:
         return dict(row) if row else None
 
 async def add_role_to_user(user_id: int, role: str) -> bool:
-    """Update user role"""
     async with pool.acquire() as conn:
         result = await conn.execute(
             'UPDATE "Users" SET role = $1 WHERE user_id = $2',

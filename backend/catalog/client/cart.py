@@ -10,7 +10,6 @@ router = APIRouter(
     tags=["Cart"]
 )
 
-# Получение корзины пользователя
 @router.get("/")
 async def get_cart(current_user: Annotated[dict, Depends(get_current_user)]):
     async with db.pool.acquire() as conn:
@@ -33,7 +32,6 @@ async def get_cart(current_user: Annotated[dict, Depends(get_current_user)]):
         return {"items": [dict(item) for item in items]}
 
 
-# Добавление товара в корзину
 @router.post("/add")
 async def add_to_cart(
     product_id: int,
@@ -93,7 +91,6 @@ async def add_to_cart(
             return {"detail": "Product added to cart"}
 
 
-# Удаление товара из корзины
 @router.delete("/remove")
 async def remove_from_cart(
     product_id: int,
@@ -124,7 +121,6 @@ async def remove_from_cart(
 
         return {"detail": "Product removed from cart"}
     
-# Увеличить количество товара в корзине
 @router.patch("/increase")
 async def increase_quantity(
     product_id: int,
@@ -175,7 +171,6 @@ async def increase_quantity(
 
             return {"detail": f"Quantity increased by {quantity}"}
         
-# Уменьшить количество товара в корзине
 @router.patch("/decrease")
 async def decrease_quantity(
     product_id: int,

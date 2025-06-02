@@ -10,7 +10,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def get_current_user(token: Annotated[HTTPAuthorizationCredentials, Depends(oauth2_scheme)]):
-    """Get authenticated user from token."""
     try:
         payload = security.verify_token(token.credentials)
         if not payload:
@@ -42,7 +41,6 @@ async def get_current_user(token: Annotated[HTTPAuthorizationCredentials, Depend
         )
 
 def require_role(required_roles: list[str]) -> Callable:
-    """Require specific role(s) for endpoint access."""
     async def role_checker(current_user: Annotated[dict, Depends(get_current_user)]):
         user_role = current_user.get("role")
         if user_role not in required_roles:
