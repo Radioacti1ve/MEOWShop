@@ -106,9 +106,43 @@ services:
       superset init &&
       superset run -h 0.0.0.0 -p 8088
       "
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: meowshop_loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: always
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: meowshop_promtail
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - ./promtail-config.yml:/etc/promtail/promtail.yaml
+    command: -config.file=/etc/promtail/promtail.yaml
+    depends_on:
+      - loki
+    restart: always
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: meowshop_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - loki
+    restart: always
 
 volumes:
   postgres_data:
   elasticsearch_data:
   superset_home:
   minio_data:
+  grafana_data:
