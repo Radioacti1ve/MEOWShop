@@ -194,4 +194,4 @@ class SearchService:
 
             return [hit["_source"] for hit in response["hits"]["hits"]]
         except NotFoundError:
-            return []
+            return None  # Return None instead of empty list for non-existent products

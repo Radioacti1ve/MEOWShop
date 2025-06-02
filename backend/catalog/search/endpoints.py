@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from catalog.search.service import SearchService
 
 router = APIRouter() 
@@ -33,4 +33,7 @@ async def get_similar_products(
     limit: int = Query(5, ge=1, le=20, description="Maximum number of similar products"),
     search_service: SearchService = Depends(lambda: SearchService())
 ) -> List[Dict[str, Any]]:
-    return await search_service.get_similar_products(product_id=product_id, limit=limit)
+    products = await search_service.get_similar_products(product_id=product_id, limit=limit)
+    if products is None:  # Service will return None for non-existent products
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    return products
