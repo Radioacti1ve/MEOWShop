@@ -26,6 +26,38 @@ INSERT INTO "Products" ("seller_id", "product_name", "description", "category", 
 (3, 'Пылесос Philips PowerPro Expert', 'Мощность 650 Вт, мешок для пыли 2 л', 'Бытовая техника', 8990.00, 12, 'available'),
 (1, 'Power Bank 20000 mAh', 'Универсальный power bank с быстрой зарядкой', 'Электроника', 2990.00, 0, 'out_of_stock');
 
+INSERT INTO "Product_images" ("product_id", "image_filename", "position") VALUES
+(1, 'xiaomi_redmi_note_11.jpg', 0),
+(1, 'xiaomi_redmi_note_11_alt.jpg', 1),
+
+(2, 'jbl_tune_510bt.jpg', 0),
+(2, 'jbl_tune_510bt_alt.jpg', 1),
+
+(3, 'amazfit_bip_u_pro.jpg', 0),
+(3, 'amazfit_bip_u_pro_alt.jpg', 1),
+
+(4, 'levis_501_jeans.jpg', 0),
+(4, 'levis_501_jeans_back.jpg', 1),
+
+(5, 'tshirt_oversize_black.jpg', 0),
+(5, 'tshirt_oversize_black_detail.jpg', 1),
+
+(6, 'summer_dress_floral.jpg', 0),
+(6, 'summer_dress_floral_model.jpg', 1),
+
+(7, 'delonghi_ecp_33_21.jpg', 0),
+(7, 'delonghi_ecp_33_21_side.jpg', 1),
+
+(8, 'beko_rcna400k20w.jpg', 0),
+(8, 'beko_rcna400k20w_inside.jpg', 1),
+
+(9, 'philips_powerpro_expert.jpg', 0),
+(9, 'philips_powerpro_expert_parts.jpg', 1),
+
+(10, 'powerbank_20000_mah.jpg', 0),
+(10, 'powerbank_20000_mah_ports.jpg', 1);
+
+
 INSERT INTO "Baskets" ("user_id") VALUES
 (1), (2), (3), (4), (5);
 

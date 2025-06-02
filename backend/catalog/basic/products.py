@@ -100,20 +100,39 @@ async def get_products(
             return rating_str
 
         products = []
-        for p in records:
-            avg_rating = await get_cached_rating(p["product_id"], p["avg_rating"])
-            products.append({
-                "product_id": p["product_id"],
-                "seller_id": p["seller_id"],
-                "seller_name": p["seller_name"],
-                "product_name": p["product_name"],
-                "description": p["description"],
-                "category": p["category"],
-                "price": float(p["price"]),
-                "in_stock": p["in_stock"],
-                "status": p["status"],
-                "avg_rating": avg_rating
-            })
+
+        async with db.pool.acquire() as conn:
+            records = await conn.fetch(query, *params)
+
+
+            for p in records:
+                avg_rating = await get_cached_rating(p["product_id"], p["avg_rating"])
+
+                image_record = await conn.fetchrow('''
+                        SELECT image_filename FROM "Product_images"
+                        WHERE product_id = $1
+                        ORDER BY position ASC
+                        LIMIT 1
+                    ''', p["product_id"])
+                main_image_url = (
+                    f"http://localhost:9000/product-images/{image_record['image_filename']}"
+                    if image_record and image_record["image_filename"]
+                    else None
+                )
+
+                products.append({
+                    "product_id": p["product_id"],
+                    "seller_id": p["seller_id"],
+                    "seller_name": p["seller_name"],
+                    "product_name": p["product_name"],
+                    "description": p["description"],
+                    "category": p["category"],
+                    "price": float(p["price"]),
+                    "in_stock": p["in_stock"],
+                    "status": p["status"],
+                    "avg_rating": avg_rating,
+                    "main_image_url": main_image_url
+                })
 
         return {
             "count": len(products),

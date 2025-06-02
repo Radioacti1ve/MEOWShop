@@ -23,15 +23,6 @@ async def set_avg_rating_cache(product_id: int, avg_rating: float | None):
 
 @router.get("/product/{product_id}", description="Get detailed information about a specific product")
 async def get_product(product_id: int, user_id: Optional[int] = Depends(get_current_user_id)):
-    """
-    Get detailed information about a specific product by its ID.
-    
-    Parameters:
-    - product_id: The unique identifier of the product
-    
-    Returns:
-    - Product information including seller details and average rating
-    """
     try:
         async with db.pool.acquire() as conn:
             await conn.execute(
@@ -69,6 +60,19 @@ async def get_product(product_id: int, user_id: Optional[int] = Depends(get_curr
             '''
             product = await conn.fetchrow(query, product_id)
 
+            images_query = '''
+                SELECT image_filename
+                FROM "Product_images"
+                WHERE product_id = $1
+                ORDER BY position ASC
+            '''
+            images_records = await conn.fetch(images_query, product_id)
+            image_urls = [
+                f"http://localhost:9000/product-images/{r['image_filename']}"
+                for r in images_records
+                if r["image_filename"]
+            ]
+
         if not product:
             raise HTTPException(status_code=404, detail="Товар не найден")
 
@@ -87,7 +91,8 @@ async def get_product(product_id: int, user_id: Optional[int] = Depends(get_curr
             "price": float(product["price"]),
             "in_stock": product["in_stock"],
             "status": product["status"],
-            "avg_rating": avg_rating
+            "avg_rating": avg_rating,
+            "images": image_urls
         }
 
         return product_info
