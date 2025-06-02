@@ -6,7 +6,7 @@ router = APIRouter(
     tags=["Admin"]
 )
 
-@router.put("/ban/{user_id}", tags=["admin"])
+@router.put("/ban/{user_id}")
 async def ban_user(
     user_id: int = Path(..., description="ID пользователя для бана"),
     current_user: dict = Depends(require_role(["admin"]))
@@ -45,7 +45,7 @@ async def ban_user(
     return {"message": f"User {user_id} has been banned successfully"}
 
 
-@router.put("/unban/{user_id}", tags=["admin"])
+@router.put("/unban/{user_id}")
 async def unban_user(
     user_id: int = Path(..., description="ID пользователя для разбанивания"),
     current_user: dict = Depends(require_role(["admin"]))

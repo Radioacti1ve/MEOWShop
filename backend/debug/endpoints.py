@@ -4,7 +4,7 @@ import db
 
 router = APIRouter(
     prefix="/debug",
-    tags=["debug"],
+    tags=["Debug"],
     responses={404: {"description": "Not found"}},
 )
 

@@ -17,6 +17,8 @@ from catalog.basic_authorization.profile import router as profile_router
 from catalog.basic_authorization.write_comments import router as write_comments_router
 from catalog.client.cart import router as cart_router
 from catalog.client.gambling import router as gambling_router
+from catalog.seller.seller import router as seller_router
+from catalog.seller.etl import router as etl_router
 from elastic.client import get_elasticsearch_client
 from elastic.mappings import create_product_index, PRODUCT_INDEX_NAME
 import db
@@ -124,3 +126,7 @@ app.include_router(debug_router, prefix="/debug", tags=["Debug"])
 # Корзина и покупки
 app.include_router(cart_router, prefix="/catalog", tags=["Cart"])
 app.include_router(gambling_router, prefix="/catalog/gambling", tags=["Purchase"])
+
+# Функционал продавца
+app.include_router(seller_router, prefix="/catalog", tags=["Seller"])
+app.include_router(etl_router, prefix="/catalog", tags=["ETL"])
