@@ -23,6 +23,21 @@ services:
     container_name: meowshop_redis
     restart: always
 
+  minio:
+    image: minio/minio:latest
+    container_name: meowshop_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server --console-address ":9001" /data
+    restart: always
+
+
   elasticsearch:
     image: elasticsearch:8.8.0
     container_name: meowshop_elasticsearch
@@ -52,10 +67,16 @@ services:
       - DATABASE_URL=postgresql://postgres:123@db:5432/meowshop
       - REDIS_URL=redis://redis:6379
       - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=minioadminAdd commentMore actions
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=meowshop
     depends_on:
       db:
         condition: service_healthy
       redis:
+        condition: service_started
+      minio:
         condition: service_started
       elasticsearch:
         condition: service_healthy
@@ -74,7 +95,6 @@ services:
       - "8088:8088"
     volumes:
       - superset_home:/app/superset_home
-      - ./requirements.txt:/app/requirements.txt
     depends_on:
       - db
       - redis
@@ -91,3 +111,4 @@ volumes:
   postgres_data:
   elasticsearch_data:
   superset_home:
+  minio_data:

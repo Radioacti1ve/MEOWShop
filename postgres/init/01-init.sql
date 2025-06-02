@@ -21,6 +21,16 @@ CREATE TABLE IF NOT EXISTS "Products"(
     "status" VARCHAR(50) NOT NULL DEFAULT 'available'
 );
 ALTER TABLE "Products" ADD PRIMARY KEY("product_id");
+ALTER TABLE "Products" ADD COLUMN "image_filename" VARCHAR(255);
+
+CREATE TABLE IF NOT EXISTS "Product_images" (
+    "image_id" SERIAL PRIMARY KEY,
+    "product_id" INTEGER,
+    "image_filename" VARCHAR(255),
+    "position" INTEGER DEFAULT 0,
+    FOREIGN KEY ("product_id") REFERENCES "Products"("product_id") ON DELETE CASCADE
+);
+
 
 CREATE TABLE IF NOT EXISTS "Sellers"(
     "seller_id" SERIAL NOT NULL,
