@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS "Products"(
     "category" VARCHAR(255) NOT NULL,
     "price" NUMERIC(12,2) NOT NULL ,
     "in_stock" INTEGER NOT NULL CHECK ("in_stock" >= 0),
-    "status" VARCHAR(50) NOT NULL DEFAULT 'available'
+    "status" VARCHAR(50) NOT NULL DEFAULT 'waiting'
 );
 ALTER TABLE "Products" ADD PRIMARY KEY("product_id");
 

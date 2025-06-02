@@ -2,7 +2,8 @@ from fastapi import FastAPI, HTTPException, status, Request, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
 from pydantic import BaseModel
-from catalog.seller import router as seller_router
+from catalog.seller.seller import router as seller_router
+from catalog.seller.etl import router as etl_router
 from typing import Optional, List
 import security, db
 
@@ -25,6 +26,7 @@ app.add_middleware(
 
 # Подключаем роутер для seller API
 app.include_router(seller_router)
+app.include_router(etl_router)
 
 class UserLogin(BaseModel):
     username: str

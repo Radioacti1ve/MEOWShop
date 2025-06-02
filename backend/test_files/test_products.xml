@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<products>
+    <product>
+        <product_name>Aquarium Filter Pro</product_name>
+        <description>Advanced filtration system for clean water</description>
+        <category>Equipment</category>
+        <price>34.99</price>
+        <in_stock>25</in_stock>
+        <extra_field>ignored</extra_field>
+    </product>
+    <product>
+        <product_name>LED Aquarium Light</product_name>
+        <description>Full spectrum LED lighting for plant growth</description>
+        <category>Lighting</category>
+        <price>89.99</price>
+        <in_stock>15</in_stock>
+    </product>
+    <product>
+        <product_name>Premium Fish Food</product_name>
+        <description>High-quality nutrition for tropical fish</description>
+        <category>Food</category>
+        <price>12.49</price>
+        <in_stock>100</in_stock>
+    </product>
+</products>
