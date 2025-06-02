@@ -5,7 +5,10 @@ import db
 from auth.depends import get_current_user
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["Cart"])
+router = APIRouter(
+    prefix="/cart",
+    tags=["Cart"]
+)
 
 # Получение корзины пользователя
 @router.get("/")

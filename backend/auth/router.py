@@ -40,6 +40,13 @@ async def login(user: UserLogin):
                 detail="Incorrect username or password"
             )
         
+        # Проверяем, не забанен ли пользователь
+        if not db_user["is_active"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is banned"
+            )
+        
         access_token, refresh_token, expires_in = security.create_tokens({"sub": user.username})
         return {
             "access_token": access_token,

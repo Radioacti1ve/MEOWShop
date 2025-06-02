@@ -22,7 +22,7 @@ async def ban_user(
 
     async with db.pool.acquire() as conn:
         target_user = await conn.fetchrow(
-            'SELECT user_id, role, is_active FROM "Users" WHERE user_id = $1',
+            'SELECT user_id, role, username, is_active FROM "Users" WHERE user_id = $1',
             user_id
         )
         if not target_user:
@@ -38,6 +38,10 @@ async def ban_user(
             'UPDATE "Users" SET is_active = FALSE WHERE user_id = $1',
             user_id
         )
+        
+        # Очищаем кэш пользователя
+        cache_key = f"user:{target_user['username']}"
+        await db.redis_client.delete(cache_key)
 
     return {"message": f"User {user_id} has been banned successfully"}
 
@@ -55,7 +59,7 @@ async def unban_user(
 
     async with db.pool.acquire() as conn:
         target_user = await conn.fetchrow(
-            'SELECT user_id, role, is_active FROM "Users" WHERE user_id = $1',
+            'SELECT user_id, role, username, is_active FROM "Users" WHERE user_id = $1',
             user_id
         )
         if not target_user:
@@ -68,5 +72,9 @@ async def unban_user(
             'UPDATE "Users" SET is_active = TRUE WHERE user_id = $1',
             user_id
         )
+        
+        # Очищаем кэш пользователя
+        cache_key = f"user:{target_user['username']}"
+        await db.redis_client.delete(cache_key)
 
     return {"message": f"User {user_id} has been unbanned successfully"}

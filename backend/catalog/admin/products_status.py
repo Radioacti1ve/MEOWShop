@@ -3,7 +3,7 @@ import db
 from auth.depends import get_current_user
 
 router = APIRouter(
-    prefix="/admin/products",
+    prefix="/products",
     tags=["Admin"]
 )
 

@@ -25,7 +25,7 @@ class SearchService:
                     "seller_name"
                 ],
                 "fuzziness": "AUTO",
-                "operator": "and"
+                "operator": "or"  # Changed from 'and' to 'or'
             }
         }]
 

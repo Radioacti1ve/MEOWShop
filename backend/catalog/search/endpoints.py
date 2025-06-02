@@ -2,7 +2,7 @@ from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, Depends, Query
 from catalog.search.service import SearchService
 
-router = APIRouter(prefix="/catalog", tags=["catalog"])
+router = APIRouter() 
 
 @router.get("/search")
 async def search_products(
