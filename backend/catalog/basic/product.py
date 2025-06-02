@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from typing import Optional, Dict, Any
 import db
 import logging
+from auth.depends import get_current_user_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Products"])
@@ -21,7 +22,7 @@ async def set_avg_rating_cache(product_id: int, avg_rating: float | None):
     await db.redis_client.expire(key, CACHE_TTL_SECONDS)
 
 @router.get("/product/{product_id}", description="Get detailed information about a specific product")
-async def get_product(product_id: int):
+async def get_product(product_id: int, user_id: Optional[int] = Depends(get_current_user_id)):
     """
     Get detailed information about a specific product by its ID.
     
@@ -32,6 +33,15 @@ async def get_product(product_id: int):
     - Product information including seller details and average rating
     """
     try:
+        async with db.pool.acquire() as conn:
+            await conn.execute(
+                '''
+                INSERT INTO "Product_views"(user_id, product_id)
+                VALUES ($1, $2)
+                ''',
+                user_id, product_id
+            )
+
         cached_rating = await get_avg_rating_cache(product_id)
         avg_rating = None if cached_rating is None else cached_rating
 

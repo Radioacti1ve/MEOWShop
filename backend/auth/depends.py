@@ -1,6 +1,6 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Annotated, Callable
+from typing import Annotated, Callable, Optional
 import db
 from .security import oauth2_scheme
 from . import security
@@ -52,3 +52,24 @@ def require_role(required_roles: list[str]) -> Callable:
             )
         return current_user
     return role_checker
+
+async def get_current_user_id(
+    authorization: Optional[str] = Header(default=None)
+) -> Optional[int]:
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+
+    token = authorization.removeprefix("Bearer ").strip()
+    payload = security.verify_token(token)
+    if not payload:
+        return None
+
+    username = payload.get("sub")
+    if not username:
+        return None
+
+    user = await db.get_user_by_username(username)
+    if not user or not user.get("is_active", True):
+        return None
+
+    return user["user_id"]

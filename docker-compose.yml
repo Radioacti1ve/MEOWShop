@@ -63,6 +63,31 @@ services:
       - ./backend:/app
     restart: always
 
+  superset:
+    build:
+      context: .
+      dockerfile: superset.Dockerfile
+    container_name: meowshop_superset
+    environment:
+      - SUPERSET_SECRET_KEY=supersecretkey
+    ports:
+      - "8088:8088"
+    volumes:
+      - superset_home:/app/superset_home
+      - ./requirements.txt:/app/requirements.txt
+    depends_on:
+      - db
+      - redis
+    restart: always
+    command: >
+      /bin/sh -c "
+      superset db upgrade &&
+      superset fab create-admin --username admin --firstname Admin --lastname User --email admin@example.com --password admin &&
+      superset init &&
+      superset run -h 0.0.0.0 -p 8088
+      "
+
 volumes:
   postgres_data:
   elasticsearch_data:
+  superset_home:

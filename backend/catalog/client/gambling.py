@@ -49,6 +49,14 @@ async def purchase_items(current_user: Annotated[dict, Depends(get_current_user)
             )
             order_id = order["order_id"]
 
+            await conn.execute(
+                '''
+                INSERT INTO "Order_events" (user_id, order_id, total_price)
+                VALUES ($1, $2, $3)
+                ''',
+                current_user["user_id"], order_id, total_price
+            )
+
             for item in basket_items:
                 await conn.execute(
                     'INSERT INTO "Order_items" (order_id, product_id, quantity, price_) VALUES ($1, $2, $3, $4)',

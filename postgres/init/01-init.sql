@@ -84,3 +84,55 @@ ALTER TABLE "Sellers" ADD CONSTRAINT "sellers_user_id_foreign" FOREIGN KEY("user
 ALTER TABLE "Baskets_items" ADD CONSTRAINT "baskets_items_basket_id_foreign" FOREIGN KEY("Basket_id") REFERENCES "Baskets"("basket_id");
 ALTER TABLE "Products" ADD CONSTRAINT "products_seller_id_foreign" FOREIGN KEY("seller_id") REFERENCES "Sellers"("seller_id");
 ALTER TABLE "Orders" ADD CONSTRAINT "orders_user_id_foreign" FOREIGN KEY("user_id") REFERENCES "Users"("user_id");
+
+--логи и метрики
+
+CREATE TABLE IF NOT EXISTS "Product_views" (
+    "id" SERIAL PRIMARY KEY,
+    "user_id" INTEGER REFERENCES "Users"("user_id") ON DELETE SET NULL,
+    "product_id" INTEGER REFERENCES "Products"("product_id") ON DELETE CASCADE,
+    "viewed_at" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "Search_queries" (
+    "id" SERIAL PRIMARY KEY,
+    "user_id" INTEGER REFERENCES "Users"("user_id") ON DELETE SET NULL,
+    "query" TEXT NOT NULL,
+    "result_count" INTEGER NOT NULL,
+    "searched_at" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "Cart_actions" (
+    "id" SERIAL PRIMARY KEY,
+    "user_id" INTEGER REFERENCES "Users"("user_id") ON DELETE CASCADE,
+    "product_id" INTEGER REFERENCES "Products"("product_id") ON DELETE CASCADE,
+    "action_type" VARCHAR(10) NOT NULL CHECK (action_type IN ('add', 'remove', 'increase', 'decrease')),
+    "quantity" INTEGER CHECK (quantity > 0),
+    "action_time" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "Order_events" (
+    "id" SERIAL PRIMARY KEY,
+    "user_id" INTEGER REFERENCES "Users"("user_id") ON DELETE CASCADE,
+    "order_id" INTEGER REFERENCES "Orders"("order_id") ON DELETE CASCADE,
+    "total_price" NUMERIC(12,2) NOT NULL,
+    "created_at" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "Auth_events" (
+    "id" SERIAL PRIMARY KEY,
+    "user_id" INTEGER REFERENCES "Users"("user_id") ON DELETE SET NULL,
+    "event_type" VARCHAR(10) NOT NULL CHECK (event_type IN ('login', 'register')),
+    "ip_address" TEXT,
+    "user_agent" TEXT,
+    "event_time" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "User_profile_history" (
+    "id" SERIAL PRIMARY KEY,
+    "user_id" INTEGER REFERENCES "Users"("user_id") ON DELETE CASCADE,
+    "old_username" VARCHAR(255),
+    "old_email" VARCHAR(255),
+    "old_description" TEXT,
+    "changed_at" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

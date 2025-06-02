@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from .models import UserLogin, UserRegister, Token, TokenRefresh, SellerRegister, PendingSellerResponse, SellerApproval, AdminRegister, PendingAdminResponse, AdminApproval
 from .security import oauth2_scheme
@@ -20,7 +20,7 @@ router = APIRouter(
 )
 
 @router.post("/login", response_model=Token, summary="User login")
-async def login(user: UserLogin):
+async def login(user: UserLogin, request: Request):
     """
     Login for existing users.
     
@@ -48,6 +48,18 @@ async def login(user: UserLogin):
             )
         
         access_token, refresh_token, expires_in = security.create_tokens({"sub": user.username})
+        ip_address = request.client.host
+        user_agent = request.headers.get("user-agent", "unknown")
+
+        async with db.pool.acquire() as conn:
+            await conn.execute(
+                '''
+                INSERT INTO "Auth_events" (user_id, event_type, ip_address, user_agent)
+                VALUES ($1, 'login', $2, $3)
+                ''',
+                db_user["user_id"], ip_address, user_agent
+            )
+
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -65,7 +77,7 @@ async def login(user: UserLogin):
         )
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, summary="Register new user")
-async def register(user: UserRegister):
+async def register(user: UserRegister, request: Request):
     """
     Register a new user.
     
@@ -82,6 +94,19 @@ async def register(user: UserRegister):
             )
         hashed_password = security.get_password_hash(user.password)
         new_user = await db.create_user(user.username, user.email, hashed_password)
+
+        ip_address = request.client.host
+        user_agent = request.headers.get("user-agent", "unknown")
+
+        async with db.pool.acquire() as conn:
+            await conn.execute(
+                '''
+                INSERT INTO "Auth_events" (user_id, event_type, ip_address, user_agent)
+                VALUES ($1, 'register', $2, $3)
+                ''',
+                new_user["user_id"], ip_address, user_agent
+            )
+            
         return {"message": "User created successfully", "user_id": new_user["user_id"]}
     except HTTPException:
         raise
