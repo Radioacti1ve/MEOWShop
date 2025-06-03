@@ -1,55 +1,58 @@
 from typing import Optional, List, Dict, Any
 import db
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
-from pydantic import BaseModel
 from auth.depends import get_current_user
+from .seller import check_seller_role, get_seller_id 
+
 import csv
 import openpyxl
 import json
 import xml.etree.ElementTree as ET
 from io import StringIO, BytesIO
 
+import logging
 
 
-# Создаем роутер для ETL
+logger = logging.getLogger(__name__)
+router = APIRouter(tags=["ETL"])
+
 router = APIRouter(
     prefix="/etl",
     tags=["ETL"]
 )
 
 
-
-
 def process_csv_file(content: bytes, required_fields: set) -> List[Dict[str, Any]]:
-    """Обработка CSV файлов"""
+
     products = []
     decoded = content.decode('utf-8')
-    # Автоопределение разделителя
     sample = decoded[:2048]
     sniffer = csv.Sniffer()
     try:
         dialect = sniffer.sniff(sample, delimiters=",;\t|")
         delimiter = dialect.delimiter
     except Exception:
-        delimiter = ','  # fallback
+        delimiter = ',' 
     reader = csv.DictReader(StringIO(decoded), delimiter=delimiter)
     for row in reader:
-        # Оставляем только нужные поля, игнорируем лишние
+
         product = {field: row.get(field) for field in required_fields}
-        # Валидация и преобразование типов
+
         try:
             product["price"] = float(product["price"])
             product["in_stock"] = int(product["in_stock"])
         except (ValueError, TypeError):
-            continue  # пропускаем некорректные строки
-        if not all(product.values()): # Check if all required values are present and not empty
-            continue  # пропускаем строки с пустыми значениями
+            logger.warning(f"Invalid data in row: {row}")
+            continue  
+        if not all(product.get(field) for field in required_fields): 
+            logger.warning(f"Missing required fields in row: {row}")
+            continue  
         products.append(product)
     return products
 
 
 def process_xlsx_file(content: bytes, required_fields: set) -> List[Dict[str, Any]]:
-    """Обработка XLSX файлов"""
+
     products = []
     workbook = openpyxl.load_workbook(filename=BytesIO(content)) # Use BytesIO for content
     sheet = workbook.active
@@ -62,41 +65,42 @@ def process_xlsx_file(content: bytes, required_fields: set) -> List[Dict[str, An
             product["price"] = float(product["price"])
             product["in_stock"] = int(product["in_stock"])
         except (ValueError, TypeError):
+            logger.warning(f"Invalid data in row {row_idx}: {row_dict}")
             continue
-        if not all(product.get(field) for field in required_fields): # More robust check for all required fields
+        if not all(product.get(field) for field in required_fields): 
+            logger.warning(f"Missing required fields in row {row_idx}: {row_dict}")
             continue
         products.append(product)
     return products
 
 
 def process_json_file(content: bytes, required_fields: set) -> List[Dict[str, Any]]:
-    """Обработка JSON файлов"""
+
     products = []
     try:
         decoded = content.decode('utf-8')
         json_data = json.loads(decoded)
         
-        # Проверяем, что JSON содержит список
+
         if not isinstance(json_data, list):
             raise HTTPException(status_code=400, detail="JSON file must contain an array of products")
         
         for item in json_data:
             if not isinstance(item, dict):
-                continue  # пропускаем элементы, которые не являются объектами
+                continue  
             
-            # Оставляем только нужные поля, игнорируем лишние
+            
             product = {field: item.get(field) for field in required_fields}
             
-            # Валидация и преобразование типов
             try:
                 product["price"] = float(product["price"])
                 product["in_stock"] = int(product["in_stock"])
             except (ValueError, TypeError):
-                continue  # пропускаем некорректные строки
-            
-            # Проверяем, что все обязательные поля присутствуют и не пустые
+                logger.warning(f"Invalid data in product: {item}")
+                continue  
             if not all(product.get(field) for field in required_fields):
-                continue  # пропускаем строки с пустыми значениями
+                logger.warning(f"Missing required fields in product: {item}")
+                continue  
             
             products.append(product)
             
@@ -108,41 +112,41 @@ def process_json_file(content: bytes, required_fields: set) -> List[Dict[str, An
 
 
 def process_xml_file(content: bytes, required_fields: set) -> List[Dict[str, Any]]:
-    """Обработка XML файлов"""
     products = []
     try:
         decoded = content.decode('utf-8')
         root = ET.fromstring(decoded)
         
-        # Ищем все элементы product в XML
         for product_elem in root.findall('.//product'):
             product = {}
             
-            # Извлекаем данные из атрибутов или дочерних элементов
+   
             for field in required_fields:
-                # Сначала проверяем атрибуты
+
                 if field in product_elem.attrib:
                     product[field] = product_elem.attrib[field]
                 else:
-                    # Затем проверяем дочерние элементы
+    
                     child_elem = product_elem.find(field)
                     if child_elem is not None and child_elem.text:
                         product[field] = child_elem.text.strip()
                     else:
                         product[field] = None
             
-            # Валидация и преобразование типов
+
             try:
                 if product.get("price"):
                     product["price"] = float(product["price"])
                 if product.get("in_stock"):
                     product["in_stock"] = int(product["in_stock"])
             except (ValueError, TypeError):
-                continue  # пропускаем некорректные строки
+                logger.warning(f"Invalid data in product: {product}")
+                continue  
             
-            # Проверяем, что все обязательные поля присутствуют и не пустые
+
             if not all(product.get(field) for field in required_fields):
-                continue  # пропускаем строки с пустыми значениями
+                logger.warning(f"Missing required fields in product: {product}")
+                continue 
             
             products.append(product)
             
@@ -154,7 +158,21 @@ def process_xml_file(content: bytes, required_fields: set) -> List[Dict[str, Any
 
 
 @router.post("/products/upload")
-async def upload_products_via_file(seller_id: int, file: UploadFile = File(...)):
+async def upload_products_via_file(file: UploadFile = File(...),current_user: dict = Depends(get_current_user)):
+
+ 
+    check_seller_role(current_user)
+    
+    if db.pool is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database connection not initialized"
+        )
+
+    async with db.pool.acquire() as conn:
+        seller_id = await get_seller_id(conn, current_user["user_id"])
+        
+
     products = []
     required_fields = {"product_name", "description", "category", "price", "in_stock"}
 
@@ -173,20 +191,8 @@ async def upload_products_via_file(seller_id: int, file: UploadFile = File(...))
 
     if not products:
         raise HTTPException(status_code=400, detail="No valid products found in file")
-    inserted = await bulk_insert_products(seller_id, products)
-    return {"inserted": inserted, "count": len(inserted)}
-
-
-
-
-
-
-
-
-async def bulk_insert_products(seller_id: int, products: list) -> List[Dict[str, Any]]:
-    if db.pool is None:
-        raise HTTPException(status_code=500, detail="DB pool not initialized")
-
+    
+    
     inserted = []
     async with db.pool.acquire() as conn:
         async with conn.transaction():
@@ -198,5 +204,15 @@ async def bulk_insert_products(seller_id: int, products: list) -> List[Dict[str,
                     product["price"], product["in_stock"], "waiting"
                 )
                 inserted.append(dict(row))
-    return inserted
+    
+    return {"inserted": inserted, "count": len(inserted)}
+
+
+
+
+
+
+
+
+
 

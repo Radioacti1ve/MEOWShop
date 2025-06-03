@@ -9,7 +9,7 @@ router = APIRouter(
     tags=["Seller"]
 )
 
-# Модели данных для API
+
 class ProductCreate(BaseModel):
     product_name: constr(min_length=1, max_length=255)
     description: constr(min_length=1)
@@ -51,7 +51,7 @@ async def create_product(
     product: ProductCreate,
     current_user: dict = Depends(get_current_user)
 ):
-    """Создание нового товара (статус waiting по умолчанию)"""
+
     check_seller_role(current_user)
     
     if db.pool is None:
@@ -83,7 +83,7 @@ async def create_product(
 async def get_seller_products(
     current_user: dict = Depends(get_current_user)
 ):
-    """Получение всех товаров продавца с изображениями"""
+
     check_seller_role(current_user)
     
     if db.pool is None:
@@ -114,7 +114,7 @@ async def update_product(
     update_data: ProductUpdate,
     current_user: dict = Depends(get_current_user)
 ):
-    """Обновление информации о товаре"""
+
     check_seller_role(current_user)
     
     if db.pool is None:
@@ -126,7 +126,7 @@ async def update_product(
     async with db.pool.acquire() as conn:
         seller_id = await get_seller_id(conn, current_user["user_id"])
         
-        # Проверяем существование товара и права на него
+
         product = await conn.fetchrow(
             'SELECT * FROM "Products" WHERE product_id = $1 AND seller_id = $2',
             product_id, seller_id
@@ -137,14 +137,14 @@ async def update_product(
                 detail="Product not found or doesn't belong to you"
             )
 
-        # Проверяем статус товара
+
         if product["status"] == "waiting":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot update product with 'waiting' status"
             )
 
-        # Формируем SET часть запроса только для переданных полей
+
         update_fields = []
         values = []
         if update_data.product_name is not None:
@@ -188,7 +188,7 @@ async def update_product_status(
     status_update: ProductStatusUpdate,
     current_user: dict = Depends(get_current_user)
 ):
-    """Обновление статуса товара (кроме waiting)"""
+
     check_seller_role(current_user)
     
     if db.pool is None:
